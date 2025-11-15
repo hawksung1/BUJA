@@ -1,0 +1,49 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "wsl",
+      "args": [
+        "bash",
+        "/home/user/wsl-npx.sh",
+        "-y",
+        "@upstash/context7-mcp@latest"
+      ]
+    },
+    "github": {
+      "command": "wsl",
+      "args": [
+        "bash",
+        "/home/user/wsl-npx.sh",
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your_github_token_here"
+      }
+    },
+    "playwright": {
+      "command": "wsl",
+      "args": [
+        "bash",
+        "/home/user/wsl-npx.sh",
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser",
+        "chromium"
+      ],
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "/home/user/.cache/ms-playwright"
+      }
+    },
+    "filesystem": {
+      "command": "wsl",
+      "args": [
+        "bash",
+        "/home/user/wsl-npx.sh",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/"
+      ]
+    }
+  }
+}

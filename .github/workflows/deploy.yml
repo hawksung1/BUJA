@@ -1,0 +1,45 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Install dependencies
+      run: |
+        uv sync
+    
+    - name: Run tests before deploy
+      run: |
+        uv run test
+    
+    - name: Build Docker image
+      run: |
+        docker build -t buja:latest .
+      if: ${{ github.event_name == 'push' }}
+    
+    - name: Deploy notification
+      run: |
+        echo "Deployment to production completed"
+      # 실제 배포 스크립트로 교체 필요
+

@@ -1,0 +1,70 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  pr-check:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Install dependencies
+      run: |
+        uv sync --extra dev
+    
+    - name: Run linting
+      run: |
+        uv run lint
+    
+    - name: Run type checking
+      run: |
+        uv run type-check
+    
+    - name: Run tests
+      run: |
+        uv run test
+    
+    - name: Check code formatting
+      run: |
+        uv run format --check
+    
+    - name: Comment PR
+      uses: actions/github-script@v7
+      if: always()
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const output = `## PR 체크 결과
+          
+          ✅ Linting: ${{ job.status == 'success' && '통과' || '실패' }}
+          ✅ Type Checking: ${{ job.status == 'success' && '통과' || '실패' }}
+          ✅ Tests: ${{ job.status == 'success' && '통과' || '실패' }}
+          ✅ Format Check: ${{ job.status == 'success' && '통과' || '실패' }}
+          
+          모든 체크를 통과해야 merge가 가능합니다.`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          });
+

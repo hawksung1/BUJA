@@ -1,0 +1,50 @@
+# BUJA Project - Cursor Rules
+
+## Core Rules
+1. Minimal context - read only necessary files
+2. Write tests (update when modifying)
+3. Verify UI changes with Playwright
+4. Respond in Korean, code comments in Korean
+5. Use Context7 MCP for latest docs
+6. **Update guides after structural/rule changes** ⚠️
+7. **Always optimize rules/docs for minimal size** - prefer English, remove redundancy
+
+## Essential Files
+- `.cursor/CURSOR_GUIDE.md` - Main guide
+- `.cursor/ARCHITECTURE.md` - Architecture
+- `.cursor/DEVELOPMENT.md` - Dev rules
+- `.cursor/GUIDE_UPDATE.md` - Guide update guide
+
+## Project Info
+- **Name**: BUJA (LLM-based asset management & investment advisor)
+- **Stack**: Python 3.10+, Streamlit, uv
+- **Env**: WSL
+- **Main**: `app.py`
+- **Code**: `src/`
+- **Docs**: `docs/REQUIREMENTS.md` (503 lines - reference only), `docs/DESIGN.md` (1719 lines - architecture)
+
+## Guide Update Checklist
+After work completion, update guides if:
+- New dir/file → `ARCHITECTURE.md` / `CURSOR_GUIDE.md`
+- New module/service → `ARCHITECTURE.md`
+- Architecture change → `ARCHITECTURE.md`
+- Dev rule change → `DEVELOPMENT.md`
+
+See `.cursor/GUIDE_UPDATE.md` for details.
+
+## File Structure
+```
+BUJA/
+├── app.py              # Streamlit main
+├── pages/              # Streamlit pages
+├── src/                # Source code
+├── config/             # Config files
+├── tests/              # Tests
+├── data/               # Data files
+└── pyproject.toml      # Project config
+```
+
+## Notes
+- `docs/REQUIREMENTS.md` is 503 lines - reference only needed sections
+- `docs/DESIGN.md` is 1719 lines - reference for architecture
+- See `.cursor/` for detailed guides
