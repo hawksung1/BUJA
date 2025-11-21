@@ -20,6 +20,7 @@ from src.repositories.user_repository import (
     UserProfileRepository,
     UserRepository,
 )
+from src.repositories.notification_repository import NotificationRepository
 
 __all__ = [
     "BaseRepository",
@@ -35,5 +36,6 @@ __all__ = [
     "FinancialGoalRepository",
     "ChatMessageRepository",
     "ChatProjectRepository",
+    "NotificationRepository",
 ]
 

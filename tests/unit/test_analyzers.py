@@ -134,16 +134,19 @@ class TestPerformanceAnalyzer:
         records = [
             {
                 "asset_type": "STOCK",
+                "symbol": "AAPL",
                 "quantity": 10.0,
                 "buy_price": 100.0,
                 "realized": False
             }
         ]
-        current_prices = {"STOCK": 110.0}  # 10% 상승
+        current_prices = {"AAPL": 110.0}  # 10% 상승
 
         result = analyzer.calculate_total_return(records, current_prices)
 
-        assert result["total_return_percentage"] == pytest.approx(10.0, rel=0.1)
+        # Decimal을 float로 변환하여 비교
+        return_pct = float(result["total_return_percentage"])
+        assert return_pct == pytest.approx(10.0, rel=0.1)
         assert result["total_profit_loss"] > 0
 
 

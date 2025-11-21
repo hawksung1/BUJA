@@ -1,0 +1,18 @@
+# BUJA Project Rules
+
+Read `.cursor/rules` for detailed guidelines.
+
+## Quick Rules
+1. Minimal context - read only necessary files
+2. Tests required for all changes
+3. Korean responses, English code comments
+4. Update guides when structure changes
+
+## Essential Guides
+- `.cursor/CURSOR_GUIDE.md` - Quick reference
+- `.cursor/ARCHITECTURE.md` - System design
+- `.cursor/DEVELOPMENT.md` - Coding standards
+
+## Large Docs (Reference Only)
+- `docs/REQUIREMENTS.md` (503 lines)
+- `docs/DESIGN.md` (1719 lines)

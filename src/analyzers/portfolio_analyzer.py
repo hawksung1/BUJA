@@ -1,6 +1,7 @@
 """
 포트폴리오 분석기
 """
+import math
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
@@ -123,10 +124,10 @@ class PortfolioAnalyzer:
         for percentage in allocation.values():
             if percentage > 0:
                 p = percentage / total
-                entropy -= p * (p.bit_length() - 1) if p > 0 else 0
+                entropy -= p * math.log2(p)
 
         # 정규화 (0-50점)
-        max_entropy = len(allocation) * (1.0 / len(allocation)) * (len(allocation).bit_length() - 1) if len(allocation) > 1 else 1
+        max_entropy = math.log2(len(allocation)) if len(allocation) > 1 else 1
         entropy_score = min(50, (entropy / max_entropy) * 50) if max_entropy > 0 else 0
 
         return type_score + entropy_score

@@ -13,6 +13,7 @@ from src.models.portfolio import (
     Screenshot,
 )
 from src.models.user import User, UserProfile
+from src.models.notification import Notification
 
 __all__ = [
     "Base",
@@ -28,6 +29,7 @@ __all__ = [
     "RebalancingHistory",
     "ChatMessage",
     "ChatProject",
+    "Notification",
 ]
 
 

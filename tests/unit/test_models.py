@@ -9,6 +9,7 @@ from src.models import (
     FinancialSituation,
     InvestmentPreference,
     InvestmentRecord,
+    Notification,
     User,
     UserProfile,
 )
@@ -100,6 +101,41 @@ class TestFinancialGoalModel:
         assert goal.goal_type == "RETIREMENT"
         assert goal.target_amount == Decimal("500000000")
         assert goal.current_progress == Decimal("0")
+
+
+class TestNotificationModel:
+    """Notification 모델 테스트"""
+
+    def test_notification_creation(self):
+        """Notification 생성 테스트"""
+        from src.models.notification import NotificationType, NotificationStatus
+        
+        notification = Notification(
+            user_id=1,
+            type=NotificationType.RISK_ALERT,
+            title="리스크 경고",
+            message="포트폴리오 리스크가 높습니다.",
+            status=NotificationStatus.UNREAD
+        )
+        assert notification.user_id == 1
+        assert notification.type == NotificationType.RISK_ALERT
+        assert notification.title == "리스크 경고"
+        assert notification.status == NotificationStatus.UNREAD
+
+    def test_notification_repr(self):
+        """Notification __repr__ 테스트"""
+        from src.models.notification import NotificationType, NotificationStatus
+        
+        notification = Notification(
+            id=1,
+            user_id=1,
+            type=NotificationType.GOAL_PROGRESS,
+            title="목표 진행률",
+            message="목표 진행률이 50%입니다.",
+            status=NotificationStatus.UNREAD
+        )
+        assert "Notification" in repr(notification)
+        assert "1" in repr(notification)
 
 
 class TestInvestmentRecordModel:

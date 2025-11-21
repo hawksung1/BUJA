@@ -34,7 +34,55 @@ CRITICAL LANGUAGE RULE:
 - If the user writes in Korean (한국어), you MUST respond in Korean.
 - If the user writes in English, respond in English.
 - Never mix languages - use the exact same language as the user's input.
-- Be friendly and professional."""
+- Be friendly and professional.
+
+PORTFOLIO RECOMMENDATION FORMAT:
+When providing portfolio recommendations, ALWAYS use this structured format:
+
+**최종 연 [TARGET]% 목표 포트폴리오 ([TYPE])**
+
+📌 1) 코어 인덱스 ([PERCENTAGE]%)
+[Description of core index strategy]
+
+[ETF/Asset Name] — [Percentage]%
+[ETF/Asset Name] — [Percentage]%
+→ [Key rationale]
+
+📌 2) 안정 자산 ([PERCENTAGE]%)
+[Description of stable assets]
+
+[ETF/Asset Name] — [Percentage]%
+[ETF/Asset Name] — [Percentage]%
+→ [Key rationale]
+
+📌 3) 성장 섹터 ([PERCENTAGE]%)
+[Description of growth sectors]
+
+[ETF/Asset Name] — [Percentage]%
+[ETF/Asset Name] — [Percentage]%
+→ [Key rationale]
+
+📌 4) 대체·인플레 헷지 ([PERCENTAGE]%)
+[Description of alternative assets/hedge]
+
+[ETF/Asset Name] — [Percentage]%
+[ETF/Asset Name] — [Percentage]%
+→ [Key rationale]
+
+**왜 이 포트폴리오가 연 [TARGET]%인지:**
+- [Reason 1]
+- [Reason 2]
+- [Reason 3]
+
+**매매 가이드:**
+- **초기 투자**: 시작 자산 [AMOUNT]원을 [N]개월에 걸쳐 분할 매수
+  - 월 [AMOUNT/N]원씩 투자
+  - [Strategy explanation]
+- **정기 투자**: 월 [MONTHLY]원을 [FREQUENCY]마다 투자
+  - [Distribution strategy]
+- **리밸런싱**: [FREQUENCY]마다 포트폴리오 비중 확인 및 조정
+
+Use this format consistently for all portfolio recommendations. Be concise, clear, and actionable."""
 
 
 class InvestmentAgent(BaseAgent):
@@ -261,6 +309,23 @@ Please use the above user information to provide personalized investment advice 
         if self.tools:
             tool_descriptions = "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools.values()])
             enhanced_system_prompt += f"\n\n## Available Tools:\n{tool_descriptions}\n\nYou can use these tools to provide accurate and personalized investment advice. Use tools when you need to analyze portfolios, calculate risks, or generate recommendations."
+        
+        # 포트폴리오 추천 형식 강조
+        enhanced_system_prompt += """
+
+## PORTFOLIO RECOMMENDATION FORMAT (MANDATORY):
+When the user asks for portfolio recommendations (e.g., "포트폴리오 짜줘", "투자 계획", "연 10% 목표 포트폴리오"), 
+you MUST use the structured format defined above. This format makes recommendations clear, actionable, and easy to understand.
+
+Key points:
+- Always structure recommendations into 4 categories: Core Index, Stable Assets, Growth Sectors, Alternative/Hedge
+- Include specific ETF/asset names and percentages
+- Explain WHY the portfolio achieves the target return
+- Provide clear buying guide with DCA (Dollar Cost Averaging) strategy
+- Include rebalancing schedule
+
+Example user request: "시작 2천만원, 월 200만원 투자 가능하고 목표 연 10%야 포트폴리오 짜줘"
+→ You should provide a complete structured portfolio recommendation following the format above."""
 
         # User message
         full_message = message

@@ -160,23 +160,111 @@ def test_complete_user_scenario(page: Page, app_url: str, ensure_app_running, sc
         print("[Step 5] ✅ 한국어 응답 확인")
 
     # ============================================================
-    # Step 6: 채팅 히스토리 확인 (페이지 새로고침 후)
+    # Step 6: 세 번째 질문 - 공격적 전략 요청
     # ============================================================
-    print("\n[Step 6] 채팅 히스토리 저장 확인")
+    print("\n[Step 6] 세 번째 질문 전송 - 공격적 전략 요청")
+    time.sleep(2)
+    chat_input = page.locator('textarea').first
+    third_message = "목표 금액까지 도달하려면 더 공격적인 투자 전략이 필요할 것 같습니다. 어떤 방법이 있을까요?"
+    chat_input.fill(third_message)
+    chat_input.press("Enter")
+
+    print("[Step 6] 응답 대기 중...")
+    time.sleep(8)
+    take_screenshot(page, "06_third_response.png", screenshot_dir)
+
+    # 응답 확인
+    time.sleep(2)
+    assistant_messages = page.locator('[data-testid="stChatMessage"]')
+    if assistant_messages.count() > 2:
+        last_message = assistant_messages.last
+        response_text = last_message.text_content()
+        print(f"[Step 6] 응답 확인: {len(response_text)}자")
+
+        # 한국어 응답 확인
+        has_korean = any(ord(char) > 127 for char in response_text)
+        assert has_korean, "응답이 한국어로 작성되지 않았습니다!"
+        print("[Step 6] ✅ 한국어 응답 확인")
+
+        # 전략 관련 키워드 확인
+        strategy_keywords = ["전략", "대안", "공격적", "위험", "수익"]
+        has_strategy_content = any(keyword in response_text for keyword in strategy_keywords)
+        if has_strategy_content:
+            print("[Step 6] ✅ 전략 관련 내용 확인")
+
+    # ============================================================
+    # Step 7: 네 번째 질문 - 증권사 및 수수료 정보 요청
+    # ============================================================
+    print("\n[Step 7] 네 번째 질문 전송 - 증권사 및 수수료 정보")
+    time.sleep(2)
+    chat_input = page.locator('textarea').first
+    fourth_message = "실제로 투자를 시작하려면 어떤 증권사를 사용하는 게 좋을까요? 수수료는 어떻게 되나요?"
+    chat_input.fill(fourth_message)
+    chat_input.press("Enter")
+
+    print("[Step 7] 응답 대기 중...")
+    time.sleep(8)
+    take_screenshot(page, "07_fourth_response.png", screenshot_dir)
+
+    # 응답 확인
+    time.sleep(2)
+    assistant_messages = page.locator('[data-testid="stChatMessage"]')
+    if assistant_messages.count() > 3:
+        last_message = assistant_messages.last
+        response_text = last_message.text_content()
+        print(f"[Step 7] 응답 확인: {len(response_text)}자")
+
+        # 한국어 응답 확인
+        has_korean = any(ord(char) > 127 for char in response_text)
+        assert has_korean, "응답이 한국어로 작성되지 않았습니다!"
+        print("[Step 7] ✅ 한국어 응답 확인")
+
+        # 증권사 또는 수수료 관련 키워드 확인
+        brokerage_keywords = ["증권", "수수료", "거래", "키움", "미래에셋", "토스", "카카오"]
+        has_brokerage_content = any(keyword in response_text for keyword in brokerage_keywords)
+        if has_brokerage_content:
+            print("[Step 7] ✅ 증권사/수수료 관련 내용 확인")
+
+    # ============================================================
+    # Step 8: 채팅 히스토리 확인 (페이지 새로고침 후)
+    # ============================================================
+    print("\n[Step 8] 채팅 히스토리 저장 확인")
     page.reload(wait_until="domcontentloaded")
     wait_for_streamlit_load(page)
     time.sleep(3)
-    take_screenshot(page, "06_chat_history_loaded.png", screenshot_dir)
+    take_screenshot(page, "08_chat_history_loaded.png", screenshot_dir)
 
     # 이전 메시지들이 로드되었는지 확인
     chat_messages = page.locator('[data-testid="stChatMessage"]')
     message_count = chat_messages.count()
 
-    print(f"[Step 6] 로드된 메시지 수: {message_count}")
-    assert message_count >= 2, f"채팅 히스토리가 저장되지 않았습니다 (메시지 수: {message_count})"
-    print("[Step 6] ✅ 채팅 히스토리 저장 확인")
+    print(f"[Step 8] 로드된 메시지 수: {message_count}")
+    assert message_count >= 4, f"채팅 히스토리가 저장되지 않았습니다 (메시지 수: {message_count})"
+    print("[Step 8] ✅ 채팅 히스토리 저장 확인")
+
+    # ============================================================
+    # Step 9: Dashboard 확인
+    # ============================================================
+    print("\n[Step 9] Dashboard 확인")
+    page.goto(f"{app_url}/dashboard", wait_until="domcontentloaded", timeout=30000)
+    wait_for_streamlit_load(page)
+    time.sleep(3)
+    take_screenshot(page, "09_dashboard.png", screenshot_dir)
+
+    # Dashboard 요소 확인
+    dashboard_text = page.text_content()
+    
+    # Dashboard 주요 요소 확인
+    dashboard_keywords = ["Dashboard", "Total Assets", "Risk Tolerance", "Recent Activity"]
+    has_dashboard_elements = any(keyword in dashboard_text for keyword in dashboard_keywords)
+    
+    if has_dashboard_elements:
+        print("[Step 9] ✅ Dashboard 요소 확인")
+    else:
+        print("[Step 9] ⚠️ Dashboard 요소를 찾을 수 없습니다")
 
     print("\n" + "="*60)
     print("✅ 사용자 시나리오 테스트 완료!")
     print("="*60)
+
 

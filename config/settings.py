@@ -67,6 +67,14 @@ class Settings(BaseSettings):
     autologin: bool = Field(default=False, description="자동 로그인 활성화 (개발 환경용)")
     autologin_email: str = Field(default="admin", description="자동 로그인 이메일")
     autologin_password: str = Field(default="admin", description="자동 로그인 비밀번호")
+    
+    # Email Notification (SMTP)
+    smtp_host: Optional[str] = Field(default=None, description="SMTP 서버 호스트")
+    smtp_port: int = Field(default=587, description="SMTP 서버 포트")
+    smtp_user: Optional[str] = Field(default=None, description="SMTP 사용자명")
+    smtp_password: Optional[str] = Field(default=None, description="SMTP 비밀번호")
+    from_email: Optional[str] = Field(default=None, description="발신자 이메일 주소")
+    from_name: str = Field(default="BUJA 투자 상담", description="발신자 이름")
 
     @field_validator("log_level")
     @classmethod

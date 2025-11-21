@@ -48,7 +48,7 @@ class PerformanceAnalyzer:
             else:
                 # 미실현 기록
                 if current_prices and record.get("symbol"):
-                    current_price = current_prices.get(record["symbol"], buy_price)
+                    current_price = Decimal(str(current_prices.get(record["symbol"], buy_price)))
                 else:
                     current_price = buy_price
                 value = quantity * current_price

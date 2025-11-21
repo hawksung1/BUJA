@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from src.models.financial import FinancialGoal, FinancialSituation
     from src.models.investment import InvestmentPreference, InvestmentRecord
     from src.models.portfolio import AssetRecommendation, PortfolioAnalysis, Screenshot
+    from src.models.notification import Notification
 
 
 class User(Base, TimestampMixin):
@@ -81,6 +82,12 @@ class User(Base, TimestampMixin):
         back_populates="user",
         cascade="all, delete-orphan",
         order_by="ChatProject.created_at"
+    )
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        order_by="Notification.created_at.desc()"
     )
 
     def __repr__(self) -> str:

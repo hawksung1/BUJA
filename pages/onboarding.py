@@ -38,15 +38,16 @@ render_sidebar()
 
 st.title("👋 Welcome! Welcome to BUJA")
 st.markdown("""
-We will collect some basic information for investment consultation.
-This information will be used to provide personalized investment advice.
+**빠른 시작**: 최소 정보만 입력하면 바로 포트폴리오를 제안해드립니다.
+상세 정보는 나중에 언제든지 추가할 수 있습니다.
 """)
 
 # Display progress steps
 if "onboarding_step" not in st.session_state:
     st.session_state.onboarding_step = 1
 
-steps = ["1. Basic Information", "2. Financial Situation", "3. Investment Preference", "4. Financial Goals"]
+# 간소화된 2단계 온보딩
+steps = ["1. 기본 정보", "2. 투자 목표"]
 current_step = st.session_state.onboarding_step
 
 # Progress bar
@@ -54,9 +55,9 @@ progress = current_step / len(steps)
 st.progress(progress)
 st.caption(f"Step {current_step}/{len(steps)}: {steps[current_step - 1]}")
 
-# Step 1: Basic Information (UserProfile)
+# Step 1: Basic Information (UserProfile) - 간소화
 if current_step == 1:
-    st.subheader("📋 Basic Information")
+    st.subheader("📋 기본 정보")
 
     # Check existing profile information
     try:
@@ -66,31 +67,33 @@ if current_step == 1:
         existing_profile = None
 
     with st.form("profile_form"):
+        st.info("💡 이름과 나이만 입력하면 바로 시작할 수 있습니다. 직업은 선택사항입니다.")
+
         name = st.text_input(
-            "Name *",
+            "이름 *",
             value=existing_profile.name if existing_profile and existing_profile.name else "",
-            placeholder="John Doe"
+            placeholder="홍길동"
         )
 
         age = st.number_input(
-            "Age *",
+            "나이 *",
             min_value=1,
             max_value=120,
             value=existing_profile.age if existing_profile and existing_profile.age else None,
-            help="Please enter your age"
+            help="나이를 입력해주세요"
         )
 
         occupation = st.text_input(
-            "Occupation",
+            "직업 (선택사항)",
             value=existing_profile.occupation if existing_profile and existing_profile.occupation else "",
-            placeholder="e.g., Developer, Accountant, Doctor, etc."
+            placeholder="예: 개발자, 회계사, 의사 등"
         )
 
-        submit = st.form_submit_button("Next", use_container_width=True)
+        submit = st.form_submit_button("다음", use_container_width=True)
 
         if submit:
             if not name or not age:
-                st.error("Name and age are required fields.")
+                st.error("이름과 나이는 필수 입력 항목입니다.")
             else:
                 try:
                     # Update profile
@@ -103,135 +106,178 @@ if current_step == 1:
                     st.session_state.onboarding_step = 2
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error saving profile: {str(e)}")
+                    st.error(f"프로필 저장 오류: {str(e)}")
 
-# Step 2: Financial Situation
+# Step 2: Quick Investment Goal - 간소화된 투자 목표 설정
 elif current_step == 2:
-    st.subheader("💰 Financial Situation")
+    st.subheader("💰 투자 목표")
 
-    # Check existing financial situation
+    # Check existing data
     try:
         existing_situation = run_async(financial_situation_repo.get_by_user_id(user.id))
     except Exception:
         existing_situation = None
 
-    with st.form("financial_form"):
-        st.info("💡 Only total assets (investable or currently invested amount) is required. The rest are optional.")
+    try:
+        existing_preference = run_async(preference_service.get_preference(user.id))
+    except Exception:
+        existing_preference = None
 
-        total_assets = st.number_input(
-            "Total Assets (Investable or Currently Invested Amount) (KRW) *",
-            min_value=0,
-            value=int(existing_situation.total_assets) if existing_situation and existing_situation.total_assets else 0,
-            step=1000000,
-            help="Please enter the total amount you can invest or are currently investing"
-        )
-
-        st.markdown("---")
-        st.markdown("### Optional Information")
-        st.caption("Please enter additional information for more accurate investment advice.")
+    with st.form("quick_investment_form"):
+        st.info("💡 최소 정보만 입력하면 바로 포트폴리오를 제안해드립니다. 상세 정보는 나중에 추가할 수 있습니다.")
 
         col1, col2 = st.columns(2)
 
         with col1:
-            monthly_income = st.number_input(
-                "Monthly Income (KRW)",
+            total_assets = st.number_input(
+                "시작 자산 (원) *",
                 min_value=0,
-                value=int(existing_situation.monthly_income) if existing_situation and existing_situation.monthly_income else 0,
-                step=100000,
-                help="After-tax take-home pay (optional)"
-            )
-
-            monthly_expense = st.number_input(
-                "Monthly Expense (KRW)",
-                min_value=0,
-                value=int(existing_situation.monthly_expense) if existing_situation and existing_situation.monthly_expense else 0,
-                step=100000,
-                help="Monthly living expenses, etc. (optional)"
-            )
-
-            total_debt = st.number_input(
-                "Total Debt (KRW)",
-                min_value=0,
-                value=int(existing_situation.total_debt) if existing_situation and existing_situation.total_debt else 0,
+                value=int(existing_situation.total_assets) if existing_situation and existing_situation.total_assets else 0,
                 step=1000000,
-                help="Loans, credit card debt, etc. (optional)"
+                help="현재 투자 가능한 금액 또는 이미 투자한 금액"
+            )
+
+            monthly_investment = st.number_input(
+                "월 투자 가능액 (원)",
+                min_value=0,
+                value=int(existing_situation.monthly_income - existing_situation.monthly_expense) if existing_situation and existing_situation.monthly_income and existing_situation.monthly_expense else 0,
+                step=100000,
+                help="매월 추가로 투자할 수 있는 금액 (선택사항)"
             )
 
         with col2:
-            emergency_fund = st.number_input(
-                "Emergency Fund (KRW)",
-                min_value=0,
-                value=int(existing_situation.emergency_fund) if existing_situation and existing_situation.emergency_fund else 0,
-                step=1000000,
-                help="6 months of living expenses recommended (optional)"
+            target_return = st.number_input(
+                "목표 수익률 (%) *",
+                min_value=0.0,
+                max_value=100.0,
+                value=float(existing_preference.target_return) if existing_preference and existing_preference.target_return else 10.0,
+                step=0.5,
+                help="연간 목표 수익률"
             )
 
-            family_members = st.number_input(
-                "Number of Family Members",
+            risk_tolerance = st.slider(
+                "위험 감수 성향 (1-10) *",
                 min_value=1,
-                value=existing_situation.family_members if existing_situation and existing_situation.family_members else 1,
-                help="Optional"
+                max_value=10,
+                value=existing_preference.risk_tolerance if existing_preference else 5,
+                help="1=매우 보수적, 10=매우 공격적"
             )
 
-            insurance_coverage = st.number_input(
-                "Insurance Coverage (KRW)",
-                min_value=0,
-                value=int(existing_situation.insurance_coverage) if existing_situation and existing_situation.insurance_coverage else 0,
-                step=10000000,
-                help="Optional"
-            )
+        # 상세 정보 접기/펼치기
+        with st.expander("📋 상세 정보 입력 (선택사항)", expanded=False):
+            st.caption("더 정확한 추천을 위해 추가 정보를 입력할 수 있습니다. 나중에 언제든지 수정 가능합니다.")
 
-        col_prev, col_next = st.columns([1, 1])
+            col1, col2 = st.columns(2)
+
+            with col1:
+                detail_monthly_income = st.number_input(
+                    "월 소득 (원)",
+                    min_value=0,
+                    value=int(existing_situation.monthly_income) if existing_situation and existing_situation.monthly_income else 0,
+                    step=100000,
+                    key="detail_monthly_income"
+                )
+
+                detail_monthly_expense = st.number_input(
+                    "월 지출 (원)",
+                    min_value=0,
+                    value=int(existing_situation.monthly_expense) if existing_situation and existing_situation.monthly_expense else 0,
+                    step=100000,
+                    key="detail_monthly_expense"
+                )
+
+            with col2:
+                detail_total_debt = st.number_input(
+                    "총 부채 (원)",
+                    min_value=0,
+                    value=int(existing_situation.total_debt) if existing_situation and existing_situation.total_debt else 0,
+                    step=1000000,
+                    key="detail_total_debt"
+                )
+
+                detail_emergency_fund = st.number_input(
+                    "비상금 (원)",
+                    min_value=0,
+                    value=int(existing_situation.emergency_fund) if existing_situation and existing_situation.emergency_fund else 0,
+                    step=1000000,
+                    key="detail_emergency_fund"
+                )
+
+        col_prev, col_complete = st.columns([1, 1])
         with col_prev:
-            if st.form_submit_button("Previous", use_container_width=True):
+            if st.form_submit_button("이전", use_container_width=True):
                 st.session_state.onboarding_step = 1
                 st.rerun()
 
-        with col_next:
-            submit = st.form_submit_button("Next", use_container_width=True)
+        with col_complete:
+            submit = st.form_submit_button("✅ 완료하고 포트폴리오 받기", use_container_width=True)
 
         if submit:
             if not total_assets or total_assets == 0:
-                st.error("Total assets (investable or currently invested amount) is a required field.")
+                st.error("시작 자산은 필수 입력 항목입니다.")
             else:
                 try:
-                    # Save/update financial situation
-                    async def save_financial_situation():
+                    # Save financial situation
+                    # expander 안의 변수들은 form submit 시에도 접근 가능
+                    monthly_income_val = detail_monthly_income if 'detail_monthly_income' in locals() else 0
+                    monthly_expense_val = detail_monthly_expense if 'detail_monthly_expense' in locals() else 0
+                    total_debt_val = detail_total_debt if 'detail_total_debt' in locals() else 0
+                    emergency_fund_val = detail_emergency_fund if 'detail_emergency_fund' in locals() else 0
+                    
+                    async def save_data():
+                        # Financial Situation 저장
                         if existing_situation:
-                            existing_situation.monthly_income = Decimal(str(monthly_income))
-                            existing_situation.monthly_expense = Decimal(str(monthly_expense))
+                            existing_situation.monthly_income = Decimal(str(monthly_income_val)) if monthly_income_val else None
+                            existing_situation.monthly_expense = Decimal(str(monthly_expense_val)) if monthly_expense_val else None
                             existing_situation.total_assets = Decimal(str(total_assets))
-                            existing_situation.total_debt = Decimal(str(total_debt)) if total_debt else None
-                            existing_situation.emergency_fund = Decimal(str(emergency_fund)) if emergency_fund else None
-                            existing_situation.family_members = family_members
-                            existing_situation.insurance_coverage = Decimal(str(insurance_coverage)) if insurance_coverage else None
+                            existing_situation.total_debt = Decimal(str(total_debt_val)) if total_debt_val else None
+                            existing_situation.emergency_fund = Decimal(str(emergency_fund_val)) if emergency_fund_val else None
                             async with db.session() as session:
                                 await financial_situation_repo.update(existing_situation, session)
                                 await session.commit()
                         else:
                             situation = FinancialSituation(
                                 user_id=user.id,
-                                monthly_income=Decimal(str(monthly_income)),
-                                monthly_expense=Decimal(str(monthly_expense)),
+                                monthly_income=Decimal(str(monthly_income_val)) if monthly_income_val else None,
+                                monthly_expense=Decimal(str(monthly_expense_val)) if monthly_expense_val else None,
                                 total_assets=Decimal(str(total_assets)),
-                                total_debt=Decimal(str(total_debt)) if total_debt else None,
-                                emergency_fund=Decimal(str(emergency_fund)) if emergency_fund else None,
-                                family_members=family_members,
-                                insurance_coverage=Decimal(str(insurance_coverage)) if insurance_coverage else None
+                                total_debt=Decimal(str(total_debt_val)) if total_debt_val else None,
+                                emergency_fund=Decimal(str(emergency_fund_val)) if emergency_fund_val else None,
+                                family_members=1,
+                                insurance_coverage=None
                             )
                             async with db.session() as session:
                                 await financial_situation_repo.create(situation, session)
                                 await session.commit()
 
-                    run_async(save_financial_situation())
+                        # Investment Preference 저장
+                        preference_data = {
+                            "risk_tolerance": risk_tolerance,
+                            "target_return": target_return,
+                            "investment_period": "MEDIUM",  # 기본값
+                            "investment_experience": "BEGINNER",  # 기본값
+                            "max_loss_tolerance": 20.0,  # 기본값
+                            "preferred_asset_types": None,
+                            "home_country": "KOREA",  # 기본값
+                            "preferred_regions": ["KOREA", "USA"],  # 기본값
+                            "currency_hedge_preference": "NONE"  # 기본값
+                        }
+                        await preference_service.update_preference(user.id, preference_data)
 
-                    st.session_state.onboarding_step = 3
-                    st.rerun()
+                    run_async(save_data())
+
+                    # 온보딩 완료
+                    st.session_state.onboarding_completed = True
+                    st.success("🎉 온보딩이 완료되었습니다! Agent Chat으로 이동합니다.")
+                    import time
+                    time.sleep(1)
+                    st.switch_page("pages/agent_chat.py")
                 except Exception as e:
-                    st.error(f"Error saving financial situation: {str(e)}")
+                    st.error(f"데이터 저장 오류: {str(e)}")
 
-# Step 3: Investment Preference
-elif current_step == 3:
+# Step 3, 4는 제거됨 - 간소화된 온보딩으로 통합
+# 기존 Step 3, 4는 나중에 상세 정보 입력 페이지로 활용 가능
+if False:  # 사용 안 함
     st.subheader("📈 Investment Preference")
 
     # Check existing investment preference
