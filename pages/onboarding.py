@@ -1,16 +1,17 @@
 """
 Onboarding Page - Collect initial user information
 """
-import streamlit as st
-from src.middleware import auth_middleware
-from src.services import InvestmentPreferenceService, UserService
-from src.repositories import FinancialSituationRepository, FinancialGoalRepository
-from src.models import FinancialSituation, FinancialGoal
-from src.exceptions import ValidationError
-from src.utils.async_helpers import run_async
-from config.database import db
-from decimal import Decimal
 from datetime import date, timedelta
+from decimal import Decimal
+
+import streamlit as st
+
+from config.database import db
+from src.middleware import auth_middleware
+from src.models import FinancialGoal, FinancialSituation
+from src.repositories import FinancialGoalRepository, FinancialSituationRepository
+from src.services import InvestmentPreferenceService, UserService
+from src.utils.async_helpers import run_async
 
 st.set_page_config(
     page_title="Onboarding - BUJA",
@@ -32,6 +33,7 @@ financial_goal_repo = FinancialGoalRepository(db)
 
 # Render common sidebar
 from src.utils.sidebar import render_sidebar
+
 render_sidebar()
 
 st.title("👋 Welcome! Welcome to BUJA")
@@ -55,21 +57,21 @@ st.caption(f"Step {current_step}/{len(steps)}: {steps[current_step - 1]}")
 # Step 1: Basic Information (UserProfile)
 if current_step == 1:
     st.subheader("📋 Basic Information")
-    
+
     # Check existing profile information
     try:
         user_with_profile = run_async(user_service.get_user_with_profile(user.id))
         existing_profile = user_with_profile.profile
     except Exception:
         existing_profile = None
-    
+
     with st.form("profile_form"):
         name = st.text_input(
             "Name *",
             value=existing_profile.name if existing_profile and existing_profile.name else "",
             placeholder="John Doe"
         )
-        
+
         age = st.number_input(
             "Age *",
             min_value=1,
@@ -77,15 +79,15 @@ if current_step == 1:
             value=existing_profile.age if existing_profile and existing_profile.age else None,
             help="Please enter your age"
         )
-        
+
         occupation = st.text_input(
             "Occupation",
             value=existing_profile.occupation if existing_profile and existing_profile.occupation else "",
             placeholder="e.g., Developer, Accountant, Doctor, etc."
         )
-        
+
         submit = st.form_submit_button("Next", use_container_width=True)
-        
+
         if submit:
             if not name or not age:
                 st.error("Name and age are required fields.")
@@ -106,16 +108,16 @@ if current_step == 1:
 # Step 2: Financial Situation
 elif current_step == 2:
     st.subheader("💰 Financial Situation")
-    
+
     # Check existing financial situation
     try:
         existing_situation = run_async(financial_situation_repo.get_by_user_id(user.id))
     except Exception:
         existing_situation = None
-    
+
     with st.form("financial_form"):
         st.info("💡 Only total assets (investable or currently invested amount) is required. The rest are optional.")
-        
+
         total_assets = st.number_input(
             "Total Assets (Investable or Currently Invested Amount) (KRW) *",
             min_value=0,
@@ -123,13 +125,13 @@ elif current_step == 2:
             step=1000000,
             help="Please enter the total amount you can invest or are currently investing"
         )
-        
+
         st.markdown("---")
         st.markdown("### Optional Information")
         st.caption("Please enter additional information for more accurate investment advice.")
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             monthly_income = st.number_input(
                 "Monthly Income (KRW)",
@@ -138,7 +140,7 @@ elif current_step == 2:
                 step=100000,
                 help="After-tax take-home pay (optional)"
             )
-            
+
             monthly_expense = st.number_input(
                 "Monthly Expense (KRW)",
                 min_value=0,
@@ -146,7 +148,7 @@ elif current_step == 2:
                 step=100000,
                 help="Monthly living expenses, etc. (optional)"
             )
-            
+
             total_debt = st.number_input(
                 "Total Debt (KRW)",
                 min_value=0,
@@ -154,7 +156,7 @@ elif current_step == 2:
                 step=1000000,
                 help="Loans, credit card debt, etc. (optional)"
             )
-        
+
         with col2:
             emergency_fund = st.number_input(
                 "Emergency Fund (KRW)",
@@ -163,14 +165,14 @@ elif current_step == 2:
                 step=1000000,
                 help="6 months of living expenses recommended (optional)"
             )
-            
+
             family_members = st.number_input(
                 "Number of Family Members",
                 min_value=1,
                 value=existing_situation.family_members if existing_situation and existing_situation.family_members else 1,
                 help="Optional"
             )
-            
+
             insurance_coverage = st.number_input(
                 "Insurance Coverage (KRW)",
                 min_value=0,
@@ -178,16 +180,16 @@ elif current_step == 2:
                 step=10000000,
                 help="Optional"
             )
-        
+
         col_prev, col_next = st.columns([1, 1])
         with col_prev:
             if st.form_submit_button("Previous", use_container_width=True):
                 st.session_state.onboarding_step = 1
                 st.rerun()
-        
+
         with col_next:
             submit = st.form_submit_button("Next", use_container_width=True)
-        
+
         if submit:
             if not total_assets or total_assets == 0:
                 st.error("Total assets (investable or currently invested amount) is a required field.")
@@ -220,9 +222,9 @@ elif current_step == 2:
                             async with db.session() as session:
                                 await financial_situation_repo.create(situation, session)
                                 await session.commit()
-                    
+
                     run_async(save_financial_situation())
-                    
+
                     st.session_state.onboarding_step = 3
                     st.rerun()
                 except Exception as e:
@@ -231,13 +233,13 @@ elif current_step == 2:
 # Step 3: Investment Preference
 elif current_step == 3:
     st.subheader("📈 Investment Preference")
-    
+
     # Check existing investment preference
     try:
         existing_preference = run_async(preference_service.get_preference(user.id))
     except Exception:
         existing_preference = None
-    
+
     with st.form("preference_form"):
         risk_tolerance = st.slider(
             "Risk Tolerance (1-10) *",
@@ -246,20 +248,20 @@ elif current_step == 3:
             value=existing_preference.risk_tolerance if existing_preference else 5,
             help="1 = Very Conservative, 10 = Very Aggressive"
         )
-        
+
         st.markdown("**Risk Tolerance Guide:**")
         st.info("""
         - **1-3 (Conservative)**: Capital preservation is top priority, seeking stable returns
         - **4-6 (Moderate)**: Accepting moderate risk while seeking returns
         - **7-10 (Aggressive)**: Accepting high risk for high returns
         """)
-        
+
         # Auto-calculate target return based on financial goals
         calculated_target_return = None
         try:
             financial_goals = run_async(financial_goal_repo.get_by_user_id(user.id))
             financial_situation = run_async(financial_situation_repo.get_by_user_id(user.id))
-            
+
             if financial_goals and financial_situation and financial_situation.total_assets:
                 # Use highest priority goal
                 primary_goal = max(financial_goals, key=lambda g: g.priority, default=None)
@@ -267,12 +269,12 @@ elif current_step == 3:
                     from datetime import date
                     today = date.today()
                     years = (primary_goal.target_date - today).days / 365.25
-                    
+
                     if years > 0:
                         current_amount = float(financial_situation.total_assets)
                         target_amount = float(primary_goal.target_amount)
                         needed_amount = target_amount - current_amount
-                        
+
                         if needed_amount > 0 and current_amount > 0:
                             # Calculate required return: (target_amount / current_amount)^(1/years) - 1
                             import math
@@ -280,12 +282,12 @@ elif current_step == 3:
                             calculated_target_return = max(0.0, min(100.0, required_return))
         except Exception:
             pass
-        
+
         # Target return input (display auto-calculated value if available)
         if calculated_target_return:
             st.info(f"💡 Target return calculated based on financial goals: **{calculated_target_return:.2f}%**")
             st.caption(f"This is the annual average return needed to achieve {primary_goal.target_amount:,.0f} KRW by {primary_goal.target_date.strftime('%B %Y')}.")
-        
+
         target_return = st.number_input(
             "Target Return (%) *",
             min_value=0.0,
@@ -294,23 +296,23 @@ elif current_step == 3:
             step=0.1,
             help="If you have financial goals, the auto-calculated value will be displayed. You can modify it if needed."
         )
-        
+
         if calculated_target_return and abs(target_return - calculated_target_return) > 0.1:
             st.warning("⚠️ The entered target return differs from the calculated value. It may be difficult to achieve your financial goals.")
-        
+
         investment_period = st.selectbox(
             "Investment Period *",
             options=["SHORT", "MEDIUM", "LONG"],
             index=0 if not existing_preference else ["SHORT", "MEDIUM", "LONG"].index(existing_preference.investment_period) if existing_preference.investment_period in ["SHORT", "MEDIUM", "LONG"] else 0,
             help="SHORT: 1 year or less, MEDIUM: 1-5 years, LONG: 5 years or more"
         )
-        
+
         investment_experience = st.selectbox(
             "Investment Experience *",
             options=["BEGINNER", "INTERMEDIATE", "ADVANCED"],
             index=0 if not existing_preference else ["BEGINNER", "INTERMEDIATE", "ADVANCED"].index(existing_preference.investment_experience) if existing_preference.investment_experience in ["BEGINNER", "INTERMEDIATE", "ADVANCED"] else 0
         )
-        
+
         max_loss_tolerance = st.number_input(
             "Max Loss Tolerance (%)",
             min_value=0.0,
@@ -319,16 +321,16 @@ elif current_step == 3:
             step=0.1,
             help="Maximum acceptable loss ratio in portfolio"
         )
-        
+
         preferred_asset_types = st.multiselect(
             "Preferred Asset Types",
             options=["STOCK", "BOND", "REAL_ESTATE", "CRYPTO", "COMMODITY", "ETF", "MUTUAL_FUND"],
             default=existing_preference.preferred_asset_types if existing_preference and existing_preference.preferred_asset_types else []
         )
-        
+
         st.markdown("---")
         st.markdown("### 🌍 Global Portfolio Settings")
-        
+
         with st.expander("💡 What is a Global Portfolio?", expanded=False):
             st.markdown("""
             **Global Portfolio** is a strategy of diversifying investments across multiple countries and regions worldwide.
@@ -345,23 +347,23 @@ elif current_step == 3:
             - **Asia**: Growth potential, yuan/yen diversification
             - **Emerging Markets**: High growth rates, diverse currencies
             """)
-        
+
         home_country = st.selectbox(
             "Home Country (Base Currency) *",
             options=["KOREA", "USA", "JAPAN", "CHINA", "EUROPE", "SINGAPORE", "OTHER"],
-            index=0 if not existing_preference or not existing_preference.home_country else 
-                  ["KOREA", "USA", "JAPAN", "CHINA", "EUROPE", "SINGAPORE", "OTHER"].index(existing_preference.home_country) 
+            index=0 if not existing_preference or not existing_preference.home_country else
+                  ["KOREA", "USA", "JAPAN", "CHINA", "EUROPE", "SINGAPORE", "OTHER"].index(existing_preference.home_country)
                   if existing_preference.home_country in ["KOREA", "USA", "JAPAN", "CHINA", "EUROPE", "SINGAPORE", "OTHER"] else 0,
             help="Selecting your home country will configure the portfolio based on that country's currency."
         )
-        
+
         preferred_regions = st.multiselect(
             "Preferred Investment Regions (Multiple Selection)",
             options=["KOREA", "USA", "EUROPE", "ASIA", "EMERGING", "GLOBAL"],
             default=existing_preference.preferred_regions if existing_preference and existing_preference.preferred_regions else ["KOREA", "USA"],
             help="Select regions you want to invest in. Selecting multiple regions will diversify your assets."
         )
-        
+
         currency_hedge_preference = st.selectbox(
             "Currency Hedge Preference",
             options=["NONE", "PARTIAL", "FULL"],
@@ -370,7 +372,7 @@ elif current_step == 3:
                   if existing_preference.currency_hedge_preference in ["NONE", "PARTIAL", "FULL"] else 0,
             help="Select the degree of hedging for exchange rate risk. NONE=No hedge, PARTIAL=Partial hedge, FULL=Full hedge"
         )
-        
+
         with st.expander("💡 What is Currency Hedging?", expanded=False):
             st.markdown("""
             **Currency Hedging** is a strategy to prevent losses from exchange rate fluctuations when investing in foreign currency assets.
@@ -390,16 +392,16 @@ elif current_step == 3:
             - Minimize exchange rate fluctuation risk
             - Hedging costs incurred
             """)
-        
+
         col_prev, col_next = st.columns([1, 1])
         with col_prev:
             if st.form_submit_button("Previous", use_container_width=True):
                 st.session_state.onboarding_step = 2
                 st.rerun()
-        
+
         with col_next:
             submit = st.form_submit_button("Next", use_container_width=True)
-        
+
         if submit:
             try:
                 preference_data = {
@@ -413,7 +415,7 @@ elif current_step == 3:
                     "preferred_regions": preferred_regions if preferred_regions else None,
                     "currency_hedge_preference": currency_hedge_preference
                 }
-                
+
                 run_async(preference_service.update_preference(user.id, preference_data))
                 st.session_state.onboarding_step = 4
                 st.rerun()
@@ -423,7 +425,7 @@ elif current_step == 3:
 # Step 4: Financial Goals
 elif current_step == 4:
     st.subheader("🎯 Financial Goals")
-    
+
     # Financial goals explanation
     with st.expander("💡 What are Financial Goals?", expanded=False):
         st.markdown("""
@@ -439,15 +441,15 @@ elif current_step == 4:
         
         You can add multiple goals and set **priority** for each goal to use in investment strategy planning.
         """)
-    
+
     st.info("💡 Add your financial goals. You can add multiple goals, and investment plans will be created based on priority.")
-    
+
     # Check existing goals
     try:
         existing_goals = run_async(financial_goal_repo.get_by_user_id(user.id))
     except Exception:
         existing_goals = []
-    
+
     if existing_goals:
         st.subheader("📋 Currently Registered Goals")
         for goal in existing_goals:
@@ -461,7 +463,7 @@ elif current_step == 4:
                 "OTHER": "Other"
             }
             goal_type_display = goal_type_display_map.get(goal.goal_type, goal.goal_type)
-            
+
             with st.expander(f"🎯 {goal_type_display} - {goal.target_amount:,.0f} KRW (Target Date: {goal.target_date.strftime('%B %d, %Y')})"):
                 col1, col2 = st.columns(2)
                 with col1:
@@ -469,18 +471,18 @@ elif current_step == 4:
                 with col2:
                     progress_pct = (goal.current_progress / goal.target_amount * 100) if goal.target_amount > 0 else 0
                     st.metric("Progress", f"{progress_pct:.1f}%", f"{goal.current_progress:,.0f} KRW / {goal.target_amount:,.0f} KRW")
-                
-                if st.button(f"🗑️ Delete", key=f"delete_{goal.id}", use_container_width=True):
+
+                if st.button("🗑️ Delete", key=f"delete_{goal.id}", use_container_width=True):
                     async def delete_goal():
                         async with db.session() as session:
                             await financial_goal_repo.delete(goal.id, session)
                             await session.commit()
                     run_async(delete_goal())
                     st.rerun()
-    
+
     with st.form("goal_form"):
         st.markdown("### Add New Goal")
-        
+
         # Display goal type options
         goal_type_options = {
             "Retirement Planning": "RETIREMENT",
@@ -490,16 +492,16 @@ elif current_step == 4:
             "Emergency Fund": "EMERGENCY",
             "Other": "OTHER"
         }
-        
+
         goal_type_display = st.selectbox(
             "Goal Type *",
             options=list(goal_type_options.keys()),
             help="Select the type of financial goal you want to achieve"
         )
         goal_type = goal_type_options[goal_type_display]
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             target_amount = st.number_input(
                 "Target Amount (KRW) *",
@@ -508,7 +510,7 @@ elif current_step == 4:
                 format="%d",
                 help="Enter the target amount you want to achieve"
             )
-        
+
         with col2:
             # Can set up to 50 years from current date
             max_date = date.today() + timedelta(days=365 * 50)
@@ -519,9 +521,9 @@ elif current_step == 4:
                 value=date.today() + timedelta(days=365),
                 help=f"Select the date you want to achieve the goal (up to {max_date.year})"
             )
-        
+
         st.markdown("---")
-        
+
         # Priority explanation
         with st.expander("💡 What is Priority?", expanded=False):
             st.markdown("""
@@ -533,7 +535,7 @@ elif current_step == 4:
             
             Investment strategy and fund allocation vary based on priority.
             """)
-        
+
         priority = st.slider(
             "Priority",
             min_value=1,
@@ -542,7 +544,7 @@ elif current_step == 4:
             help="1 = Highest (most important), 5 = Low priority",
             format="#%d"
         )
-        
+
         # Display priority description
         priority_descriptions = {
             1: "🔥 Highest - Most important and urgent goal",
@@ -552,21 +554,21 @@ elif current_step == 4:
             5: "💤 Very Low - Long-term goal"
         }
         st.caption(f"💡 {priority_descriptions[priority]}")
-        
+
         st.markdown("---")
-        
+
         col_prev, col_add, col_next = st.columns([1, 1, 1])
         with col_prev:
             if st.form_submit_button("⬅️ Previous", use_container_width=True):
                 st.session_state.onboarding_step = 3
                 st.rerun()
-        
+
         with col_add:
             add_goal = st.form_submit_button("➕ Add Goal", use_container_width=True)
-        
+
         with col_next:
             finish = st.form_submit_button("✅ Complete", use_container_width=True)
-        
+
         if add_goal:
             if not target_amount:
                 st.error("❌ Please enter the target amount.")
@@ -591,12 +593,12 @@ elif current_step == 4:
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Error adding goal: {str(e)}")
-        
+
         if finish:
             # Can complete even if no goals (optional)
             if not existing_goals:
                 st.info("💡 Financial goals are optional. You can add them anytime later.")
-            
+
             # Set onboarding completion flag
             st.session_state.onboarding_completed = True
             st.success("🎉 Onboarding completed! Redirecting to Agent Chat.")

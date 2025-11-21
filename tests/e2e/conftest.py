@@ -1,11 +1,11 @@
 """
 E2E 테스트 공통 설정 및 Fixtures
 """
-import pytest
 import time
-import httpx
-from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
 
+import httpx
+import pytest
+from playwright.sync_api import Browser, Page, sync_playwright
 
 # 테스트 설정
 APP_URL = "http://localhost:8501"
@@ -55,7 +55,7 @@ def ensure_app_running(app_url: str):
                 time.sleep(2)
             else:
                 print(f"[WARN] Streamlit 앱 확인 실패: {str(e)}")
-    
+
     # 스킵하지 않고 경고만 출력 (테스트는 계속 진행)
     print(f"[WARN] Streamlit 앱이 {app_url}에서 응답하지 않지만 테스트를 계속 진행합니다.")
     return False
@@ -103,11 +103,11 @@ def navigate_to_page(page: Page, page_name: str, page_title: str = None, wait_ti
         wait_time: 이동 후 대기 시간 (초)
     """
     import time
-    
+
     # page_title이 없으면 page_name 사용
     if not page_title:
         page_title = page_name
-    
+
     # 여러 방법으로 링크 찾기
     selectors = [
         f"a[href*='{page_name}']",
@@ -115,7 +115,7 @@ def navigate_to_page(page: Page, page_name: str, page_title: str = None, wait_ti
         f"[data-testid='stPageLink']:has-text('{page_title}')",
         f"a:has-text('{page_title}')",
     ]
-    
+
     page_link = None
     for selector in selectors:
         try:
@@ -124,7 +124,7 @@ def navigate_to_page(page: Page, page_name: str, page_title: str = None, wait_ti
                 break
         except:
             continue
-    
+
     if page_link and page_link.count() > 0:
         try:
             page_link.click()

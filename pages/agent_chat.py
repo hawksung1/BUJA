@@ -2,14 +2,15 @@
 Agent Chat Page
 """
 import streamlit as st
-from src.middleware import auth_middleware
-from src.agents import InvestmentAgent
-from src.services import UserService, InvestmentPreferenceService, ChatService
-from src.repositories import FinancialSituationRepository, FinancialGoalRepository
-from src.utils.async_helpers import run_async
-from src.utils.chat_ui import render_chat_file_upload_styles, render_chat_file_upload_script
+
 from config.database import db
 from config.logging import get_logger
+from src.agents import InvestmentAgent
+from src.middleware import auth_middleware
+from src.repositories import FinancialGoalRepository, FinancialSituationRepository
+from src.services import ChatService, InvestmentPreferenceService, UserService
+from src.utils.async_helpers import run_async
+from src.utils.chat_ui import render_chat_file_upload_script, render_chat_file_upload_styles
 
 logger = get_logger(__name__)
 
@@ -37,26 +38,26 @@ try:
     preference = run_async(preference_service.get_preference(user.id))
     financial_situation_repo = FinancialSituationRepository(db)
     financial_goal_repo = FinancialGoalRepository(db)
-    
+
     has_profile = user_with_profile.profile is not None
     has_preference = preference is not None
     has_financial_situation = False
     has_financial_goals = False
-    
+
     try:
         financial_situation = run_async(financial_situation_repo.get_by_user_id(user.id))
         has_financial_situation = financial_situation is not None
     except Exception as e:
         logger.debug(f"Could not load financial situation: {e}")
         pass
-    
+
     try:
         financial_goals = run_async(financial_goal_repo.get_by_user_id(user.id))
         has_financial_goals = len(financial_goals) > 0 if financial_goals else False
     except Exception as e:
         logger.debug(f"Could not load financial goals: {e}")
         pass
-    
+
     # Redirect if onboarding is not completed
     if not has_profile or not has_preference or not has_financial_situation:
         if "onboarding_completed" not in st.session_state:
@@ -82,12 +83,12 @@ current_project_id = st.session_state.get("current_project_id", None)
 try:
     saved_messages = run_async(chat_service.get_messages(user.id, project_id=current_project_id))
     logger.debug(f"Retrieved {len(saved_messages) if saved_messages else 0} messages from database for user {user.id}")
-    
+
     if saved_messages and len(saved_messages) > 0:
         # 데이터베이스 메시지로 교체 (중복 방지)
         st.session_state.messages = saved_messages
         logger.info(f"Loaded {len(saved_messages)} messages from database for user {user.id}")
-        
+
         # 디버깅: 첫 번째 메시지 내용 확인
         if len(saved_messages) > 0:
             first_msg = saved_messages[0]
@@ -133,8 +134,8 @@ if st.session_state.messages:
                     # 단일 이미지
                     if isinstance(message["image"], bytes):
                         st.image(
-                            message["image"], 
-                            caption=message.get("image_caption", ""), 
+                            message["image"],
+                            caption=message.get("image_caption", ""),
                             use_container_width=True
                         )
                     # 여러 이미지 (리스트)
@@ -210,7 +211,7 @@ if prompt or st.session_state.uploaded_images:
     # Analyze images if present
     image_data = None
     image_captions = []
-    
+
     if st.session_state.uploaded_images:
         # 여러 이미지 지원
         if len(st.session_state.uploaded_images) == 1:
@@ -221,10 +222,10 @@ if prompt or st.session_state.uploaded_images:
             # 여러 이미지
             image_data = [img[0] for img in st.session_state.uploaded_images]
             image_captions = [img[1] or f"image_{idx+1}" for idx, img in enumerate(st.session_state.uploaded_images)]
-        
+
         # 이미지 사용 후 초기화
         st.session_state.uploaded_images = []
-    
+
     # Add user message
     user_message = {
         "role": "user",
@@ -236,9 +237,9 @@ if prompt or st.session_state.uploaded_images:
             user_message["image_caption"] = image_captions[0]
         else:
             user_message["image_captions"] = image_captions
-    
+
     st.session_state.messages.append(user_message)
-    
+
     # Save user message to database
     # 여러 이미지 모두 저장 (JSON 배열로 저장)
     try:
@@ -253,7 +254,7 @@ if prompt or st.session_state.uploaded_images:
                 # 단일 이미지
                 save_image_data = image_data
                 save_image_caption = image_captions[0] if image_captions else None
-        
+
         saved_msg = run_async(chat_service.save_message(
             user_id=user.id,
             role="user",
@@ -266,7 +267,7 @@ if prompt or st.session_state.uploaded_images:
     except Exception as e:
         logger.error(f"Failed to save user message: {e}", exc_info=True)
         st.warning(f"Failed to save message: {str(e)}")
-    
+
     with st.chat_message("user"):
         if image_data:
             if isinstance(image_data, list):
@@ -280,7 +281,7 @@ if prompt or st.session_state.uploaded_images:
                 st.image(image_data, caption=caption, use_container_width=True)
         if prompt:
             st.write(prompt)
-    
+
     # Get agent response
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
@@ -290,29 +291,29 @@ if prompt or st.session_state.uploaded_images:
                     try:
                         # 여러 이미지인 경우 첫 번째 이미지만 분석 (또는 모든 이미지 분석)
                         analyze_image = image_data[0] if isinstance(image_data, list) else image_data
-                        
+
                         analysis_result = run_async(
                             st.session_state.agent.analyze_image(
                                 image_data=analyze_image,
                                 prompt=prompt or "Please analyze this portfolio screenshot and provide investment advice."
                             )
                         )
-                        
+
                         if analysis_result.get("status") == "success":
                             analysis_text = analysis_result.get("analysis", "")
-                            
+
                             # 분석 결과에 이미지 포함 (필요한 경우)
                             assistant_msg = {
                                 "role": "assistant",
                                 "content": f"📊 Image Analysis Result:\n\n{analysis_text}"
                             }
-                            
+
                             # 분석 결과 이미지가 있으면 포함
                             if "image" in analysis_result:
                                 assistant_msg["image"] = analysis_result["image"]
                                 if "image_caption" in analysis_result:
                                     assistant_msg["image_caption"] = analysis_result["image_caption"]
-                            
+
                             # Assistant 메시지에 이미지 표시
                             if "image" in assistant_msg:
                                 if isinstance(assistant_msg["image"], list):
@@ -327,12 +328,12 @@ if prompt or st.session_state.uploaded_images:
                                 else:
                                     caption = assistant_msg.get("image_caption", "")
                                     st.image(assistant_msg["image"], caption=caption, use_container_width=True)
-                            
+
                             st.write("📊 **Image Analysis Result:**")
                             st.write(analysis_text)
-                            
+
                             st.session_state.messages.append(assistant_msg)
-                            
+
                             # Save assistant message to database
                             try:
                                 saved_msg = run_async(chat_service.save_message(
@@ -359,7 +360,7 @@ if prompt or st.session_state.uploaded_images:
                             "role": "assistant",
                             "content": f"Error during image analysis: {str(e)}"
                         })
-                
+
                 # Generate regular chat response if text prompt exists
                 if prompt:
                     # Build context with all user information (optimized: single session)
@@ -372,7 +373,7 @@ if prompt or st.session_state.uploaded_images:
                                 preference = await preference_service.get_preference(user.id)
                                 financial_situation_repo = FinancialSituationRepository(db)
                                 financial_goal_repo = FinancialGoalRepository(db)
-                                
+
                                 # User Profile
                                 if user_with_profile and user_with_profile.profile:
                                     context["user_profile"] = {
@@ -380,7 +381,7 @@ if prompt or st.session_state.uploaded_images:
                                         "age": user_with_profile.profile.age,
                                         "occupation": user_with_profile.profile.occupation,
                                     }
-                                
+
                                 # Investment Preference
                                 if preference:
                                     context["investment_preference"] = {
@@ -391,7 +392,7 @@ if prompt or st.session_state.uploaded_images:
                                         "max_loss_tolerance": float(preference.max_loss_tolerance) if preference.max_loss_tolerance else None,
                                         "preferred_asset_types": preference.preferred_asset_types or [],
                                     }
-                                
+
                                 # Financial Situation
                                 try:
                                     financial_situation = await financial_situation_repo.get_by_user_id(user.id, session=session)
@@ -407,7 +408,7 @@ if prompt or st.session_state.uploaded_images:
                                         }
                                 except Exception as e:
                                     logger.debug(f"Could not load financial situation: {e}")
-                                
+
                                 # Financial Goals
                                 try:
                                     financial_goals = await financial_goal_repo.get_by_user_id(user.id, session=session)
@@ -424,28 +425,28 @@ if prompt or st.session_state.uploaded_images:
                                         ]
                                 except Exception as e:
                                     logger.debug(f"Could not load financial goals: {e}")
-                                
+
                                 # Add user_id (required for tool execution)
                                 context["user_id"] = user.id
                                 return context
-                        
+
                         context = run_async(load_user_context())
-                        
+
                     except Exception as e:
                         logger.warning(f"Could not load full user context: {str(e)}", exc_info=True)
                         # Add user_id at minimum
                         context = {"user_id": user.id}
-                    
+
                     # Debug: check context
                     if st.session_state.get("debug_mode", False):
                         st.json(context)
-                    
+
                     # Generate agent response (streaming)
                     response_placeholder = st.empty()
-                    
+
                     # Collect and display streaming response
                     full_response_list = []
-                    
+
                     async def stream_response():
                         try:
                             async for chunk in st.session_state.agent.chat(prompt, context=context):
@@ -458,18 +459,18 @@ if prompt or st.session_state.uploaded_images:
                             if not full_response_list:
                                 full_response_list.append(error_msg)
                             response_placeholder.write("".join(full_response_list))
-                    
+
                     run_async(stream_response())
-                    
+
                     full_response = "".join(full_response_list)
-                    
+
                     if not image_data:  # Prevent duplicate display if image analysis result already shown
                         if full_response:
                             response_placeholder.write(full_response)
-                    
+
                     assistant_message = {"role": "assistant", "content": full_response}
                     st.session_state.messages.append(assistant_message)
-                    
+
                     # Save assistant message to database
                     try:
                         saved_msg = run_async(chat_service.save_message(

@@ -1,9 +1,9 @@
 """
 데이터 변환 유틸리티 함수
 """
-from typing import List, Dict, Any, Optional
-from datetime import date
 from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
 from src.models.investment import InvestmentRecord
 
 

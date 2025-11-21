@@ -1,26 +1,22 @@
 """
 모델 단위 테스트
 """
-import pytest
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
+
 from src.models import (
-    User,
-    UserProfile,
-    FinancialSituation,
     FinancialGoal,
+    FinancialSituation,
     InvestmentPreference,
     InvestmentRecord,
-    Screenshot,
-    PortfolioAnalysis,
-    AssetRecommendation,
-    RebalancingHistory,
+    User,
+    UserProfile,
 )
 
 
 class TestUserModel:
     """User 모델 테스트"""
-    
+
     def test_user_creation(self):
         """User 생성 테스트"""
         user = User(
@@ -30,7 +26,7 @@ class TestUserModel:
         assert user.email == "test@example.com"
         assert user.password_hash == "hashed_password"
         assert user.is_active is True
-    
+
     def test_user_repr(self):
         """User __repr__ 테스트"""
         user = User(id=1, email="test@example.com", password_hash="hash")
@@ -41,7 +37,7 @@ class TestUserModel:
 
 class TestUserProfileModel:
     """UserProfile 모델 테스트"""
-    
+
     def test_user_profile_creation(self):
         """UserProfile 생성 테스트"""
         profile = UserProfile(
@@ -57,7 +53,7 @@ class TestUserProfileModel:
 
 class TestFinancialSituationModel:
     """FinancialSituation 모델 테스트"""
-    
+
     def test_financial_situation_creation(self):
         """FinancialSituation 생성 테스트"""
         situation = FinancialSituation(
@@ -73,7 +69,7 @@ class TestFinancialSituationModel:
 
 class TestInvestmentPreferenceModel:
     """InvestmentPreference 모델 테스트"""
-    
+
     def test_investment_preference_creation(self):
         """InvestmentPreference 생성 테스트"""
         preference = InvestmentPreference(
@@ -90,7 +86,7 @@ class TestInvestmentPreferenceModel:
 
 class TestFinancialGoalModel:
     """FinancialGoal 모델 테스트"""
-    
+
     def test_financial_goal_creation(self):
         """FinancialGoal 생성 테스트"""
         goal = FinancialGoal(
@@ -108,7 +104,7 @@ class TestFinancialGoalModel:
 
 class TestInvestmentRecordModel:
     """InvestmentRecord 모델 테스트"""
-    
+
     def test_investment_record_creation(self):
         """InvestmentRecord 생성 테스트"""
         record = InvestmentRecord(

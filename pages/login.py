@@ -2,10 +2,11 @@
 Login and Registration Page
 """
 import streamlit as st
+
+from config.logging import get_logger
+from src.exceptions import InvalidCredentialsError, UserAlreadyExistsError, ValidationError
 from src.middleware import auth_middleware
 from src.services import UserService
-from src.exceptions import InvalidCredentialsError, ValidationError, UserAlreadyExistsError
-from config.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -19,6 +20,7 @@ user_service = UserService()
 
 # Auto login 체크 (app.py에서 처리되지 않은 경우 대비)
 from config.settings import settings
+
 user = auth_middleware.get_current_user()
 
 if not user and settings.autologin:
@@ -35,6 +37,7 @@ if not user and settings.autologin:
 
 # Render common sidebar (execute first to apply CSS)
 from src.utils.sidebar import render_sidebar
+
 render_sidebar()
 
 # Already logged in - redirect to chat
@@ -48,37 +51,37 @@ tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
 # Login Tab
 with tab1:
     st.title("🔐 Login")
-    
+
     with st.form("login_form"):
         email = st.text_input("Email", placeholder="your@email.com")
         password = st.text_input("Password", type="password", placeholder="Enter your password")
         submit_button = st.form_submit_button("Login", use_container_width=True)
-        
+
         if submit_button:
             if not email or not password:
                 st.error("Please enter both email and password.")
             else:
                 try:
-                    from src.utils.async_helpers import run_async
                     from config.database import db
-                    
+                    from src.utils.async_helpers import run_async
+
                     logger.info(f"Login attempt for email: {email}")
-                    
+
                     # Check if database is available
                     if not db.engine or not db.session_factory:
                         st.error("❌ Database Connection Error")
                         st.markdown("**Database has not been initialized.**")
-                        
+
                         # Display diagnostic information
                         with st.expander("🔍 Diagnostic Information", expanded=True):
                             # Check database driver
                             from config.settings import settings
                             is_sqlite = "sqlite" in settings.database_url.lower()
-                            
+
                             if is_sqlite:
                                 try:
                                     import aiosqlite
-                                    st.success(f"✅ aiosqlite installed (SQLite available)")
+                                    st.success("✅ aiosqlite installed (SQLite available)")
                                 except ImportError:
                                     st.error("❌ aiosqlite is not installed.")
                                     st.code("pip install aiosqlite", language="bash")
@@ -90,18 +93,18 @@ with tab1:
                                     st.error("❌ asyncpg is not installed.")
                                     st.code("uv pip install asyncpg\n# or\npip install asyncpg", language="bash")
                                     st.info("💡 Tip: Using SQLite allows you to use the app without Docker!")
-                            
+
                             # Check database URL
                             from config.settings import settings
                             masked_url = settings.database_url.replace("://", "://***:***@") if "@" in settings.database_url else settings.database_url
                             st.info(f"📋 Database URL: `{masked_url}`")
-                            
+
                             # Solution
                             st.markdown("### Solution:")
-                            
+
                             # Check database type
                             is_sqlite = "sqlite" in settings.database_url.lower()
-                            
+
                             if is_sqlite:
                                 st.markdown("""
                                 **Using SQLite** (Docker not required):
@@ -138,10 +141,10 @@ with tab1:
                                 DATABASE_URL=sqlite+aiosqlite:///./data/buja.db
                                 ```
                                 """)
-                            
+
                             st.markdown("For more details, see `docs/LOGIN_TROUBLESHOOTING.md` or `SETUP_DATABASE.md`.")
                         st.stop()
-                    
+
                     logger.debug(f"Attempting login for: {email}")
                     user = run_async(auth_middleware.login(email, password))
                     if user:
@@ -173,20 +176,20 @@ with tab1:
 # Register Tab
 with tab2:
     st.title("📝 Register")
-    
+
     with st.form("register_form"):
         st.subheader("Basic Information")
         email = st.text_input("Email", placeholder="your@email.com", key="reg_email")
         password = st.text_input("Password", type="password", placeholder="Minimum 8 characters", key="reg_password")
         password_confirm = st.text_input("Confirm Password", type="password", key="reg_password_confirm")
-        
+
         st.subheader("Profile Information (Optional)")
         name = st.text_input("Name", placeholder="John Doe", key="reg_name")
         age = st.number_input("Age", min_value=1, max_value=120, value=None, key="reg_age")
         occupation = st.text_input("Occupation", placeholder="Developer", key="reg_occupation")
-        
+
         submit_button = st.form_submit_button("Register", use_container_width=True)
-        
+
         if submit_button:
             if not email or not password:
                 st.error("Email and password are required.")
@@ -201,16 +204,16 @@ with tab2:
                         profile_data["age"] = int(age)
                     if occupation:
                         profile_data["occupation"] = occupation
-                    
-                    from src.utils.async_helpers import run_async
+
                     from config.database import db
-                    
+                    from src.utils.async_helpers import run_async
+
                     # Check if database is available
                     if not db.engine or not db.session_factory:
                         st.error("❌ Database Connection Error")
                         st.info("Database has not been initialized. Please refer to the diagnostic information in the Login tab.")
                         st.stop()
-                    
+
                     user = run_async(user_service.register(email, password, profile_data))
                     st.success("Registration successful! Please login with your credentials.")
                     # Auto-login after registration

@@ -158,3 +158,4 @@ tests/unit/test_agents.py::TestInvestmentAgent::test_chat_with_context PASSED
 **테스트 실행 환경**: Windows, Python 3.14.0, pytest 9.0.1, pytest-asyncio 1.3.0
 
 
+

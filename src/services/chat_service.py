@@ -1,19 +1,21 @@
 """
 채팅 메시지 서비스
 """
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from config.database import Database, db
-from src.repositories.chat_repository import ChatMessageRepository
-from src.models.chat import ChatMessage
 from config.logging import get_logger
+from src.models.chat import ChatMessage
+from src.repositories.chat_repository import ChatMessageRepository
 
 logger = get_logger(__name__)
 
 
 class ChatService:
     """채팅 메시지 서비스"""
-    
+
     def __init__(self, database: Optional[Database] = None):
         """
         ChatService 초기화
@@ -23,7 +25,7 @@ class ChatService:
         """
         self.db = database or db
         self.chat_repo = ChatMessageRepository(self.db)
-    
+
     async def get_messages(
         self,
         user_id: int,
@@ -44,7 +46,7 @@ class ChatService:
             채팅 메시지 딕셔너리 리스트
         """
         messages = await self.chat_repo.get_by_user_id(user_id, limit=limit, project_id=project_id, session=session)
-        
+
         result = []
         for msg in messages:
             message_dict = {
@@ -90,13 +92,13 @@ class ChatService:
                         message_dict["image_caption"] = msg.image_caption
                 except (json.JSONDecodeError, ValueError):
                     message_dict["image_caption"] = msg.image_caption
-            
+
             result.append(message_dict)
-        
+
         logger.debug(f"Converted {len(result)} messages to dict format")
         # 최신순이므로 역순으로 반환 (오래된 것부터)
         return list(reversed(result))
-    
+
     async def save_message(
         self,
         user_id: int,
@@ -141,7 +143,7 @@ class ChatService:
                 # 단일 이미지: base64로 변환
                 image_data = base64.b64encode(image_data).decode('utf-8')
             # str 타입이고 이미 JSON인 경우 그대로 사용
-        
+
         # 이미지 캡션 처리 (여러 캡션 지원)
         if image_caption:
             import json
@@ -149,7 +151,7 @@ class ChatService:
                 # 여러 캡션: JSON 배열로 저장
                 image_caption = json.dumps(image_caption)
             # 단일 캡션은 문자열로 그대로 저장
-        
+
         message = await self.chat_repo.create_message(
             user_id=user_id,
             role=role,
@@ -159,10 +161,10 @@ class ChatService:
             project_id=project_id,
             session=session
         )
-        
+
         logger.info(f"Chat message saved: user_id={user_id}, role={role}, content_length={len(content)}")
         return message
-    
+
     async def clear_messages(
         self,
         user_id: int,
@@ -185,6 +187,7 @@ class ChatService:
         else:
             # 프로젝트별 삭제
             from sqlalchemy import delete
+
             from src.models.chat import ChatMessage
             query = delete(ChatMessage).where(
                 ChatMessage.user_id == user_id,
@@ -199,10 +202,10 @@ class ChatService:
                     result = await session.execute(query)
                     await session.flush()
                     count = result.rowcount
-        
+
         logger.info(f"Cleared {count} chat messages for user_id={user_id}, project_id={project_id}")
         return count
-    
+
     async def search_messages(
         self,
         user_id: int,
@@ -224,22 +227,23 @@ class ChatService:
         Returns:
             검색된 메시지 딕셔너리 리스트
         """
-        from sqlalchemy import select, desc
+        from sqlalchemy import desc, select
+
         from src.models.chat import ChatMessage
-        
+
         query = select(ChatMessage).where(
             ChatMessage.user_id == user_id,
             ChatMessage.content.contains(search_query)
         )
-        
+
         if project_id is not None:
             query = query.where(ChatMessage.project_id == project_id)
-        
+
         query = query.order_by(desc(ChatMessage.created_at))
-        
+
         if limit:
             query = query.limit(limit)
-        
+
         if session:
             result = await session.execute(query)
             messages = list(result.scalars().all())
@@ -247,7 +251,7 @@ class ChatService:
             async with self.db.session() as session:
                 result = await session.execute(query)
                 messages = list(result.scalars().all())
-        
+
         # 딕셔너리로 변환
         result_list = []
         for msg in messages:
@@ -293,8 +297,8 @@ class ChatService:
                         message_dict["image_caption"] = msg.image_caption
                 except (json.JSONDecodeError, ValueError):
                     message_dict["image_caption"] = msg.image_caption
-            
+
             result_list.append(message_dict)
-        
+
         return list(reversed(result_list))
 

@@ -1,31 +1,30 @@
 """
 Portfolio Repository 구현
 """
-from typing import Optional, List, Dict, Any
-from datetime import date
-from decimal import Decimal
+from typing import List, Optional
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from sqlalchemy.orm import selectinload
+
 from config.database import Database
+from config.logging import get_logger
 from src.models.portfolio import (
-    Screenshot,
-    PortfolioAnalysis,
     AssetRecommendation,
+    PortfolioAnalysis,
     RebalancingHistory,
+    Screenshot,
 )
 from src.repositories.base_repository import BaseRepository
-from config.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 class ScreenshotRepository(BaseRepository[Screenshot]):
     """Screenshot Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, Screenshot)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -53,15 +52,15 @@ class ScreenshotRepository(BaseRepository[Screenshot]):
             .offset(skip)
             .limit(limit)
         )
-        
+
         if session:
             result = await session.execute(query)
             return list(result.scalars().all())
-        
+
         async with self.db.session() as session:
             result = await session.execute(query)
             return list(result.scalars().all())
-    
+
     async def get_by_status(
         self,
         user_id: int,
@@ -86,11 +85,11 @@ class ScreenshotRepository(BaseRepository[Screenshot]):
             .where(Screenshot.deleted_at.is_(None))
             .order_by(Screenshot.created_at.desc())
         )
-        
+
         if session:
             result = await session.execute(query)
             return list(result.scalars().all())
-        
+
         async with self.db.session() as session:
             result = await session.execute(query)
             return list(result.scalars().all())
@@ -98,10 +97,10 @@ class ScreenshotRepository(BaseRepository[Screenshot]):
 
 class PortfolioAnalysisRepository(BaseRepository[PortfolioAnalysis]):
     """PortfolioAnalysis Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, PortfolioAnalysis)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -128,15 +127,15 @@ class PortfolioAnalysisRepository(BaseRepository[PortfolioAnalysis]):
             .offset(skip)
             .limit(limit)
         )
-        
+
         if session:
             result = await session.execute(query)
             return list(result.scalars().all())
-        
+
         async with self.db.session() as session:
             result = await session.execute(query)
             return list(result.scalars().all())
-    
+
     async def get_latest(
         self,
         user_id: int,
@@ -158,11 +157,11 @@ class PortfolioAnalysisRepository(BaseRepository[PortfolioAnalysis]):
             .order_by(PortfolioAnalysis.analysis_date.desc())
             .limit(1)
         )
-        
+
         if session:
             result = await session.execute(query)
             return result.scalar_one_or_none()
-        
+
         async with self.db.session() as session:
             result = await session.execute(query)
             return result.scalar_one_or_none()
@@ -170,10 +169,10 @@ class PortfolioAnalysisRepository(BaseRepository[PortfolioAnalysis]):
 
 class AssetRecommendationRepository(BaseRepository[AssetRecommendation]):
     """AssetRecommendation Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, AssetRecommendation)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -200,15 +199,15 @@ class AssetRecommendationRepository(BaseRepository[AssetRecommendation]):
             .offset(skip)
             .limit(limit)
         )
-        
+
         if session:
             result = await session.execute(query)
             return list(result.scalars().all())
-        
+
         async with self.db.session() as session:
             result = await session.execute(query)
             return list(result.scalars().all())
-    
+
     async def get_latest(
         self,
         user_id: int,
@@ -230,16 +229,16 @@ class AssetRecommendationRepository(BaseRepository[AssetRecommendation]):
             select(AssetRecommendation)
             .where(AssetRecommendation.user_id == user_id)
         )
-        
+
         if recommendation_type:
             query = query.where(AssetRecommendation.recommendation_type == recommendation_type)
-        
+
         query = query.order_by(AssetRecommendation.created_at.desc()).limit(1)
-        
+
         if session:
             result = await session.execute(query)
             return result.scalar_one_or_none()
-        
+
         async with self.db.session() as session:
             result = await session.execute(query)
             return result.scalar_one_or_none()
@@ -247,10 +246,10 @@ class AssetRecommendationRepository(BaseRepository[AssetRecommendation]):
 
 class RebalancingHistoryRepository(BaseRepository[RebalancingHistory]):
     """RebalancingHistory Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, RebalancingHistory)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -277,11 +276,11 @@ class RebalancingHistoryRepository(BaseRepository[RebalancingHistory]):
             .offset(skip)
             .limit(limit)
         )
-        
+
         if session:
             result = await session.execute(query)
             return list(result.scalars().all())
-        
+
         async with self.db.session() as session:
             result = await session.execute(query)
             return list(result.scalars().all())

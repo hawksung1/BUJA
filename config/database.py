@@ -3,21 +3,23 @@
 """
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
-    create_async_engine,
     async_sessionmaker,
+    create_async_engine,
 )
 from sqlalchemy.pool import NullPool, QueuePool
-from config.settings import settings
+
 from config.logging import get_logger
+from config.settings import settings
 
 logger = get_logger(__name__)
 
 
 class Database:
     """데이터베이스 연결 관리 클래스"""
-    
+
     def __init__(self, database_url: str | None = None):
         """
         데이터베이스 초기화
@@ -26,11 +28,11 @@ class Database:
             database_url: 데이터베이스 연결 URL (기본값: settings.database_url)
         """
         self.database_url = database_url or settings.database_url
-        
+
         # 데이터베이스 타입 확인
         is_sqlite = "sqlite" in self.database_url.lower()
         is_postgres = "postgresql" in self.database_url.lower() or "postgres" in self.database_url.lower()
-        
+
         # 필요한 드라이버 확인
         if is_sqlite:
             try:
@@ -49,7 +51,7 @@ class Database:
                 self.engine = None
                 self.session_factory = None
                 return
-        
+
         # SQLite용 디렉토리 생성
         if is_sqlite:
             from pathlib import Path
@@ -58,13 +60,13 @@ class Database:
                 db_path = db_path[2:]
             db_file = Path(db_path)
             db_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # 비동기 엔진 생성
         try:
             engine_kwargs = {
                 "echo": settings.debug,  # SQL 쿼리 로깅 (디버그 모드에서만)
             }
-            
+
             # SQLite는 pool 설정이 필요 없음
             if not is_sqlite:
                 engine_kwargs.update({
@@ -77,14 +79,14 @@ class Database:
                 # SQLite는 NullPool 사용 (파일 기반이므로)
                 engine_kwargs["poolclass"] = NullPool
                 engine_kwargs["connect_args"] = {"check_same_thread": False}
-            
+
             self.engine = create_async_engine(self.database_url, **engine_kwargs)
         except Exception as e:
             logger.error(f"Failed to create database engine: {e}")
             self.engine = None
             self.session_factory = None
             return
-        
+
         # 세션 팩토리 생성
         if self.engine:
             self.session_factory = async_sessionmaker(
@@ -96,13 +98,13 @@ class Database:
             )
         else:
             self.session_factory = None
-        
+
         db_type = "SQLite" if "sqlite" in self.database_url.lower() else "PostgreSQL"
         logger.info(f"Database engine initialized ({db_type})", extra={
             "database_url": self._mask_database_url(self.database_url),
             "database_type": db_type,
         })
-    
+
     @staticmethod
     def _mask_database_url(url: str) -> str:
         """데이터베이스 URL에서 비밀번호 마스킹"""
@@ -116,7 +118,7 @@ class Database:
                         user, _ = user_pass.split(":", 1)
                         return url.replace(user_pass, f"{user}:***")
         return url
-    
+
     @asynccontextmanager
     async def session(self) -> AsyncGenerator[AsyncSession, None]:
         """
@@ -130,7 +132,7 @@ class Database:
         if not self.session_factory:
             db_type = "SQLite (aiosqlite)" if "sqlite" in self.database_url.lower() else "PostgreSQL (asyncpg)"
             raise RuntimeError(f"Database not initialized. Please install the required driver: {db_type}")
-        
+
         async with self.session_factory() as session:
             try:
                 yield session
@@ -141,7 +143,7 @@ class Database:
                 raise
             finally:
                 await session.close()
-    
+
     async def close(self) -> None:
         """데이터베이스 연결 종료"""
         if self.engine:

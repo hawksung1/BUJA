@@ -1,7 +1,6 @@
 """
 포맷팅 유틸리티
 """
-from typing import Optional
 
 
 def format_currency(amount: float, currency: str = "KRW") -> str:

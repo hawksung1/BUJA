@@ -2,7 +2,8 @@
 Base Tool 추상 클래스
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+
 from config.logging import get_logger
 
 logger = get_logger(__name__)
@@ -10,7 +11,7 @@ logger = get_logger(__name__)
 
 class BaseTool(ABC):
     """Tool 기본 클래스"""
-    
+
     def __init__(self, name: str, description: str):
         """
         BaseTool 초기화
@@ -21,7 +22,7 @@ class BaseTool(ABC):
         """
         self.name = name
         self.description = description
-    
+
     @abstractmethod
     async def execute(self, **kwargs) -> Dict[str, Any]:
         """
@@ -34,7 +35,7 @@ class BaseTool(ABC):
             실행 결과 딕셔너리
         """
         pass
-    
+
     def get_function_schema(self) -> Dict[str, Any]:
         """
         Function Calling을 위한 스키마 반환
@@ -50,7 +51,7 @@ class BaseTool(ABC):
                 "parameters": self.get_parameters_schema()
             }
         }
-    
+
     @abstractmethod
     def get_parameters_schema(self) -> Dict[str, Any]:
         """

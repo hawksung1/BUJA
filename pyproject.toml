@@ -9,10 +9,11 @@ dependencies = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
     "Pillow>=10.0.0",
+    "pyarrow>=14.0.0,<19.0.0",  # Windows build fix
     # Database
     "sqlalchemy>=2.0.0",
     "aiosqlite>=0.19.0",  # SQLite async driver (기본, Docker 불필요)
-    "asyncpg>=0.29.0",  # PostgreSQL async driver (선택사항)
+    # "asyncpg>=0.29.0",  # PostgreSQL async driver (선택사항) - Windows build issue
     "alembic>=1.13.0",
     # Cache
     "redis>=5.0.0",
@@ -75,49 +76,11 @@ ignore = [
 ]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
 
-[tool.uv.scripts]
-# Streamlit 앱 실행 (브라우저 자동 열기 방지, 자동 재기동 활성화)
-dev = "streamlit run app.py --server.headless true"
-run = "streamlit run app.py --server.headless true"
-app = "streamlit run app.py --server.headless true"
 
-# 서버 실행 (포트 지정)
-serve = "streamlit run app.py --server.port 8501 --server.headless true"
-
-# 설치
-install = "uv sync"
-setup = "uv sync"
-
-# 테스트
-test = "pytest"
-test-unit = "pytest tests/unit/ -v"
-test-integration = "pytest tests/integration/ -v"
-test-e2e = "pytest tests/e2e/ -v -m e2e"
-test-all = "pytest tests/ -v"
-test-cov = "pytest --cov=src --cov-report=html --cov-report=term-missing"
-test-cov-full = "pytest tests/unit/ tests/integration/ --cov=src --cov-report=html --cov-report=xml --cov-report=term-missing --cov-fail-under=70"
-
-# 코드 품질
-lint = "ruff check ."
-format = "black ."
-type-check = "mypy src"
-
-# 데이터베이스 관리
-db-up = "docker-compose -f docker-compose.local.yml up -d postgres"
-db-down = "docker-compose -f docker-compose.local.yml down"
-db-logs = "docker-compose -f docker-compose.local.yml logs -f postgres"
-db-reset = "docker-compose -f docker-compose.local.yml down -v && docker-compose -f docker-compose.local.yml up -d postgres"
-
-# Admin user management
-create-admin = "python scripts/create_admin_user.py"
-
-# Database initialization
-init-db = "python scripts/init_sqlite_db.py"
-init-sqlite = "python scripts/init_sqlite_db.py"
 

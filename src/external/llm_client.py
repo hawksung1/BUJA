@@ -1,22 +1,24 @@
 """
 LLM 클라이언트 구현
 """
-from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Any, AsyncGenerator, Callable, Tuple
-from enum import Enum
 import asyncio
-from datetime import datetime, timedelta
+from abc import ABC, abstractmethod
 from collections import defaultdict
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Tuple
+
 import httpx
-from openai import AsyncOpenAI
 from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
+
+from config.logging import get_logger
 from config.settings import settings
 from src.exceptions import (
     LLMAPIError,
-    LLMProviderNotFoundError,
     LLMAPIKeyError,
+    LLMProviderNotFoundError,
 )
-from config.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -66,7 +68,7 @@ class LLMProvider(str, Enum):
 
 class RateLimiter:
     """Rate Limiting 관리"""
-    
+
     def __init__(self, max_requests: int, time_window: int = 60):
         """
         Rate Limiter 초기화
@@ -79,7 +81,7 @@ class RateLimiter:
         self.time_window = time_window
         self.requests: Dict[str, List[datetime]] = defaultdict(list)
         self.lock = asyncio.Lock()
-    
+
     async def acquire(self, key: str = "default") -> bool:
         """
         Rate limit 확인 및 획득
@@ -93,21 +95,21 @@ class RateLimiter:
         async with self.lock:
             now = datetime.now()
             cutoff = now - timedelta(seconds=self.time_window)
-            
+
             # 오래된 요청 제거
             self.requests[key] = [
                 req_time for req_time in self.requests[key]
                 if req_time > cutoff
             ]
-            
+
             # Rate limit 확인
             if len(self.requests[key]) >= self.max_requests:
                 return False
-            
+
             # 요청 추가
             self.requests[key].append(now)
             return True
-    
+
     async def wait_if_needed(self, key: str = "default") -> None:
         """
         Rate limit에 도달한 경우 대기
@@ -121,7 +123,7 @@ class RateLimiter:
 
 class BaseLLMProvider(ABC):
     """LLM Provider 기본 클래스"""
-    
+
     def __init__(self, api_key: str, rate_limiter: Optional[RateLimiter] = None):
         """
         LLM Provider 초기화
@@ -132,10 +134,10 @@ class BaseLLMProvider(ABC):
         """
         if not api_key:
             raise LLMAPIKeyError(f"{self.__class__.__name__} API key is not set.")
-        
+
         self.api_key = api_key
         self.rate_limiter = rate_limiter or RateLimiter(max_requests=60, time_window=60)
-    
+
     @abstractmethod
     async def generate_text(
         self,
@@ -159,7 +161,7 @@ class BaseLLMProvider(ABC):
             생성된 텍스트
         """
         pass
-    
+
     @abstractmethod
     async def generate_stream(
         self,
@@ -183,7 +185,7 @@ class BaseLLMProvider(ABC):
             생성된 텍스트 청크
         """
         pass
-    
+
     @abstractmethod
     async def analyze_image(
         self,
@@ -211,12 +213,12 @@ class BaseLLMProvider(ABC):
 
 class OpenAIProvider(BaseLLMProvider):
     """OpenAI Provider 구현"""
-    
+
     def __init__(self, api_key: str, rate_limiter: Optional[RateLimiter] = None):
         super().__init__(api_key, rate_limiter)
         self.client = AsyncOpenAI(api_key=api_key)
         self.model = "gpt-4o"  # 기본 모델
-    
+
     @retry_on_failure(max_retries=3, backoff_factor=1.0)
     async def generate_text(
         self,
@@ -231,12 +233,12 @@ class OpenAIProvider(BaseLLMProvider):
     ) -> str:
         """텍스트 생성 (Function Calling 지원)"""
         await self.rate_limiter.wait_if_needed()
-        
+
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-        
+
         try:
             create_params = {
                 "model": model or self.model,
@@ -244,19 +246,19 @@ class OpenAIProvider(BaseLLMProvider):
                 "max_tokens": max_tokens,
                 "temperature": temperature,
             }
-            
+
             # Function Calling 지원
             if tools:
                 create_params["tools"] = tools
                 if tool_choice:
                     create_params["tool_choice"] = tool_choice
-            
+
             create_params.update(kwargs)
-            
+
             response = await self.client.chat.completions.create(**create_params)
-            
+
             message = response.choices[0].message
-            
+
             # Function calling 응답인 경우
             if message.tool_calls:
                 # content가 None일 수 있으므로 빈 문자열로 변환
@@ -275,12 +277,12 @@ class OpenAIProvider(BaseLLMProvider):
                         for tc in message.tool_calls
                     ]
                 }
-            
+
             return message.content or ""
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             raise LLMAPIError(f"OpenAI API call failed: {str(e)}")
-    
+
     async def generate_stream(
         self,
         prompt: str,
@@ -292,12 +294,12 @@ class OpenAIProvider(BaseLLMProvider):
     ) -> AsyncGenerator[str, None]:
         """스트리밍 텍스트 생성"""
         await self.rate_limiter.wait_if_needed()
-        
+
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-        
+
         try:
             stream = await self.client.chat.completions.create(
                 model=model or self.model,
@@ -313,7 +315,7 @@ class OpenAIProvider(BaseLLMProvider):
         except Exception as e:
             logger.error(f"OpenAI API streaming error: {e}")
             raise LLMAPIError(f"OpenAI API streaming call failed: {str(e)}")
-    
+
     async def analyze_image(
         self,
         image_url: Optional[str] = None,
@@ -325,14 +327,14 @@ class OpenAIProvider(BaseLLMProvider):
     ) -> str:
         """이미지 분석 (GPT-4 Vision)"""
         await self.rate_limiter.wait_if_needed()
-        
+
         messages = [{
             "role": "user",
             "content": [
                 {"type": "text", "text": prompt}
             ]
         }]
-        
+
         # 이미지 추가
         if image_url:
             messages[0]["content"].append({
@@ -350,7 +352,7 @@ class OpenAIProvider(BaseLLMProvider):
             })
         else:
             raise ValueError("image_url 또는 image_data 중 하나는 필수입니다.")
-        
+
         try:
             response = await self.client.chat.completions.create(
                 model=model or "gpt-4o",
@@ -366,12 +368,12 @@ class OpenAIProvider(BaseLLMProvider):
 
 class AnthropicProvider(BaseLLMProvider):
     """Anthropic Provider 구현"""
-    
+
     def __init__(self, api_key: str, rate_limiter: Optional[RateLimiter] = None):
         super().__init__(api_key, rate_limiter)
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = "claude-3-5-sonnet-20241022"  # 기본 모델
-    
+
     @retry_on_failure(max_retries=3, backoff_factor=1.0)
     async def generate_text(
         self,
@@ -384,7 +386,7 @@ class AnthropicProvider(BaseLLMProvider):
     ) -> str:
         """텍스트 생성"""
         await self.rate_limiter.wait_if_needed()
-        
+
         try:
             response = await self.client.messages.create(
                 model=model or self.model,
@@ -398,7 +400,7 @@ class AnthropicProvider(BaseLLMProvider):
         except Exception as e:
             logger.error(f"Anthropic API error: {e}")
             raise LLMAPIError(f"Anthropic API call failed: {str(e)}")
-    
+
     async def generate_stream(
         self,
         prompt: str,
@@ -410,7 +412,7 @@ class AnthropicProvider(BaseLLMProvider):
     ) -> AsyncGenerator[str, None]:
         """스트리밍 텍스트 생성"""
         await self.rate_limiter.wait_if_needed()
-        
+
         try:
             with await self.client.messages.stream(
                 model=model or self.model,
@@ -425,7 +427,7 @@ class AnthropicProvider(BaseLLMProvider):
         except Exception as e:
             logger.error(f"Anthropic API streaming error: {e}")
             raise LLMAPIError(f"Anthropic API streaming call failed: {str(e)}")
-    
+
     async def analyze_image(
         self,
         image_url: Optional[str] = None,
@@ -437,7 +439,7 @@ class AnthropicProvider(BaseLLMProvider):
     ) -> str:
         """이미지 분석 (Claude Vision)"""
         await self.rate_limiter.wait_if_needed()
-        
+
         # 이미지 데이터 준비
         if image_data:
             import base64
@@ -462,7 +464,7 @@ class AnthropicProvider(BaseLLMProvider):
                 }
         else:
             raise ValueError("image_url 또는 image_data 중 하나는 필수입니다.")
-        
+
         try:
             response = await self.client.messages.create(
                 model=model or self.model,
@@ -484,12 +486,12 @@ class AnthropicProvider(BaseLLMProvider):
 
 class LLMClient:
     """LLM 클라이언트 (Provider 관리)"""
-    
+
     def __init__(self):
         """LLMClient 초기화"""
         self.providers: Dict[str, BaseLLMProvider] = {}
         self.default_provider: Optional[str] = None
-    
+
     def register_provider(
         self,
         provider_name: str,
@@ -508,7 +510,7 @@ class LLMClient:
         if set_as_default or not self.default_provider:
             self.default_provider = provider_name
         logger.info(f"LLM Provider registered: {provider_name}")
-    
+
     def get_provider(self, provider_name: Optional[str] = None) -> BaseLLMProvider:
         """
         Provider 조회
@@ -525,12 +527,12 @@ class LLMClient:
         name = provider_name or self.default_provider
         if not name:
             raise LLMProviderNotFoundError("Default LLM Provider is not set.")
-        
+
         if name not in self.providers:
             raise LLMProviderNotFoundError(f"LLM Provider not found: {name}")
-        
+
         return self.providers[name]
-    
+
     async def generate_text(
         self,
         prompt: str,
@@ -550,7 +552,7 @@ class LLMClient:
         """
         provider = self.get_provider(provider_name)
         return await provider.generate_text(prompt, **kwargs)
-    
+
     async def generate_stream(
         self,
         prompt: str,
@@ -571,7 +573,7 @@ class LLMClient:
         provider = self.get_provider(provider_name)
         async for chunk in provider.generate_stream(prompt, **kwargs):
             yield chunk
-    
+
     async def analyze_image(
         self,
         image_url: Optional[str] = None,
@@ -617,11 +619,11 @@ def _get_user_api_keys() -> Tuple[Optional[str], Optional[str]]:
         import streamlit as st
         user_openai_key = st.session_state.get("user_openai_api_key", "")
         user_anthropic_key = st.session_state.get("user_anthropic_api_key", "")
-        
+
         # 빈 문자열이면 None으로 변환
         openai_key = user_openai_key if user_openai_key else None
         anthropic_key = user_anthropic_key if user_anthropic_key else None
-        
+
         return openai_key, anthropic_key
     except Exception:
         # Streamlit이 없는 환경에서는 None 반환
@@ -640,14 +642,14 @@ def get_llm_client() -> LLMClient:
         LLMProviderNotFoundError: API 키가 설정되지 않은 경우
     """
     global _llm_client
-    
+
     # 사용자 입력 API 키 가져오기
     user_openai_key, user_anthropic_key = _get_user_api_keys()
-    
+
     # 사용자 입력 키가 있으면 우선 사용, 없으면 환경 변수 값 사용
     openai_api_key = user_openai_key or settings.openai_api_key
     anthropic_api_key = user_anthropic_key or settings.anthropic_api_key
-    
+
     # 클라이언트가 없거나 재로드가 필요한 경우 초기화
     needs_reload = False
     try:
@@ -657,10 +659,10 @@ def get_llm_client() -> LLMClient:
             st.session_state.llm_client_needs_reload = False
     except Exception:
         pass
-    
+
     if _llm_client is None or needs_reload:
         _llm_client = LLMClient()
-        
+
         # OpenAI Provider 등록
         if openai_api_key:
             try:
@@ -673,7 +675,7 @@ def get_llm_client() -> LLMClient:
                 logger.info("OpenAI Provider registered (user input or env)")
             except Exception as e:
                 logger.error(f"Failed to register OpenAI Provider: {e}")
-        
+
         # Anthropic Provider 등록
         if anthropic_api_key:
             try:
@@ -686,10 +688,10 @@ def get_llm_client() -> LLMClient:
                 logger.info("Anthropic Provider registered (user input or env)")
             except Exception as e:
                 logger.error(f"Failed to register Anthropic Provider: {e}")
-        
+
         # Provider가 하나도 등록되지 않은 경우
         if not _llm_client.providers:
             logger.warning("No LLM API keys configured. Please set OPENAI_API_KEY or ANTHROPIC_API_KEY in .env.local or enter in the sidebar")
-    
+
     return _llm_client
 

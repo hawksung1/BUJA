@@ -2,7 +2,7 @@
 Async helpers for Streamlit
 """
 import asyncio
-from typing import Coroutine, Any
+from typing import Any, Coroutine
 
 
 def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
@@ -16,18 +16,15 @@ def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
         Result of the coroutine
     """
     try:
-        # Try to get existing event loop
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If loop is running, we can't use run_until_complete
-            # Create a new event loop in a thread
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, coro)
-                return future.result()
-        else:
-            return loop.run_until_complete(coro)
+        # Try to get running event loop
+        loop = asyncio.get_running_loop()
+        # If we are here, loop is running
+        # Create a new event loop in a thread
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(asyncio.run, coro)
+            return future.result()
     except RuntimeError:
-        # No event loop, create a new one
+        # No running event loop, create a new one
         return asyncio.run(coro)
 

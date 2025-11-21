@@ -1,24 +1,25 @@
 """
 Repository 단위 테스트
 """
-import pytest
 from datetime import date
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.database import Database
 from src.models import (
-    User,
     InvestmentRecord,
     PortfolioAnalysis,
+    User,
 )
 from src.repositories import (
     BaseRepository,
-    UserRepository,
-    PortfolioAnalysisRepository,
     InvestmentRecordRepository,
+    PortfolioAnalysisRepository,
+    UserRepository,
 )
-from config.database import Database
 
 
 @pytest.fixture
@@ -37,7 +38,7 @@ def mock_session():
 
 class TestBaseRepository:
     """BaseRepository 테스트"""
-    
+
     @pytest.mark.asyncio
     async def test_get_by_id(self, mock_db, mock_session):
         """ID로 엔티티 조회 테스트"""
@@ -46,14 +47,14 @@ class TestBaseRepository:
         mock_session.get = AsyncMock(return_value=user)
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = BaseRepository(mock_db, User)
         result = await repo.get_by_id(1)
-        
+
         assert result == user
         mock_session.get.assert_called_once_with(User, 1)
-    
+
     @pytest.mark.asyncio
     async def test_create(self, mock_db, mock_session):
         """엔티티 생성 테스트"""
@@ -64,16 +65,16 @@ class TestBaseRepository:
         mock_session.refresh = AsyncMock()
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = BaseRepository(mock_db, User)
         result = await repo.create(user)
-        
+
         assert result == user
         mock_session.add.assert_called_once_with(user)
         mock_session.flush.assert_called_once()
         mock_session.refresh.assert_called_once_with(user)
-    
+
     @pytest.mark.asyncio
     async def test_delete(self, mock_db, mock_session):
         """엔티티 삭제 테스트"""
@@ -84,11 +85,11 @@ class TestBaseRepository:
         mock_session.flush = AsyncMock()
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = BaseRepository(mock_db, User)
         result = await repo.delete(1)
-        
+
         assert result is True
         mock_session.execute.assert_called_once()
         mock_session.flush.assert_called_once()
@@ -96,7 +97,7 @@ class TestBaseRepository:
 
 class TestUserRepository:
     """UserRepository 테스트"""
-    
+
     @pytest.mark.asyncio
     async def test_get_by_email(self, mock_db, mock_session):
         """이메일로 사용자 조회 테스트"""
@@ -107,14 +108,14 @@ class TestUserRepository:
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = UserRepository(mock_db)
         result = await repo.get_by_email("test@example.com")
-        
+
         assert result == user
         assert result.email == "test@example.com"
-    
+
     @pytest.mark.asyncio
     async def test_create_user(self, mock_db, mock_session):
         """사용자 생성 테스트"""
@@ -125,15 +126,15 @@ class TestUserRepository:
         mock_session.refresh = AsyncMock()
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = UserRepository(mock_db)
         result = await repo.create_user("test@example.com", "hashed_password")
-        
+
         assert result.email == "test@example.com"
         assert result.password_hash == "hashed_password"
         mock_session.add.assert_called_once()
-    
+
     @pytest.mark.asyncio
     async def test_is_email_exists(self, mock_db, mock_session):
         """이메일 존재 여부 확인 테스트"""
@@ -144,13 +145,13 @@ class TestUserRepository:
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = UserRepository(mock_db)
         result = await repo.is_email_exists("test@example.com")
-        
+
         assert result is True
-        
+
         # 이메일이 없는 경우
         mock_result.scalar_one_or_none = MagicMock(return_value=None)
         result = await repo.is_email_exists("nonexistent@example.com")
@@ -159,7 +160,7 @@ class TestUserRepository:
 
 class TestInvestmentRepository:
     """InvestmentRepository 테스트"""
-    
+
     @pytest.mark.asyncio
     async def test_get_by_user_id(self, mock_db, mock_session):
         """사용자 ID로 투자 기록 조회 테스트"""
@@ -188,15 +189,15 @@ class TestInvestmentRepository:
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = InvestmentRecordRepository(mock_db)
         result = await repo.get_by_user_id(1)
-        
+
         assert len(result) == 2
         assert result[0].asset_type == "STOCK"
         assert result[1].asset_type == "BOND"
-    
+
     @pytest.mark.asyncio
     async def test_get_unrealized(self, mock_db, mock_session):
         """미실현 투자 기록 조회 테스트"""
@@ -216,18 +217,18 @@ class TestInvestmentRepository:
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = InvestmentRecordRepository(mock_db)
         result = await repo.get_unrealized(1)
-        
+
         assert len(result) == 1
         assert result[0].realized is False
 
 
 class TestPortfolioRepository:
     """PortfolioRepository 테스트"""
-    
+
     @pytest.mark.asyncio
     async def test_get_by_user_id(self, mock_db, mock_session):
         """사용자 ID로 포트폴리오 분석 조회 테스트"""
@@ -244,15 +245,15 @@ class TestPortfolioRepository:
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = PortfolioAnalysisRepository(mock_db)
         result = await repo.get_by_user_id(1)
-        
+
         assert len(result) == 1
         assert result[0].user_id == 1
         assert result[0].total_value == Decimal("1000000")
-    
+
     @pytest.mark.asyncio
     async def test_get_latest(self, mock_db, mock_session):
         """최신 포트폴리오 분석 조회 테스트"""
@@ -268,11 +269,11 @@ class TestPortfolioRepository:
         mock_session.execute = AsyncMock(return_value=mock_result)
         mock_db.session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_db.session.return_value.__aexit__ = AsyncMock(return_value=None)
-        
+
         # Repository 생성 및 테스트
         repo = PortfolioAnalysisRepository(mock_db)
         result = await repo.get_latest(1)
-        
+
         assert result is not None
         assert result.user_id == 1
 

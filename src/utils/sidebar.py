@@ -3,13 +3,14 @@ Common Sidebar Component
 Dynamically displays menu based on user authentication status and onboarding status.
 """
 import streamlit as st
-from src.middleware import auth_middleware
-from src.utils.async_helpers import run_async
-from src.services import UserService, InvestmentPreferenceService
-from src.repositories import FinancialSituationRepository, FinancialGoalRepository
-from src.exceptions import DatabaseError, UserNotFoundError
+
 from config.database import db
 from config.logging import get_logger
+from src.exceptions import DatabaseError, UserNotFoundError
+from src.middleware import auth_middleware
+from src.repositories import FinancialGoalRepository, FinancialSituationRepository
+from src.services import InvestmentPreferenceService, UserService
+from src.utils.async_helpers import run_async
 
 logger = get_logger(__name__)
 
@@ -749,15 +750,15 @@ def render_sidebar(current_page: str = None):
     """
     # Hide Streamlit default navigation
     _hide_default_navigation()
-    
+
     user = auth_middleware.get_current_user()
     is_authenticated = auth_middleware.is_authenticated()
-    
+
     # Unauthenticated user
     if not is_authenticated or not user:
         _render_unauthenticated_sidebar()
         return
-    
+
     # Authenticated user - check onboarding status
     onboarding_status = _check_onboarding_status(user.id)
     _render_authenticated_sidebar(user, onboarding_status, current_page)
@@ -768,10 +769,10 @@ def _render_unauthenticated_sidebar():
     with st.sidebar:
         st.title("💰 BUJA")
         st.markdown("---")
-        
+
         st.page_link("pages/login.py", label="Login", icon="🔐")
         st.page_link("pages/register.py", label="Register", icon="📝")
-        
+
         st.markdown("---")
         st.caption("Please login to use the service.")
 
@@ -781,17 +782,17 @@ def _render_authenticated_sidebar(user, onboarding_status, current_page: str = N
     with st.sidebar:
         # App title
         st.markdown("### 💰 BUJA")
-        
+
         st.markdown("---")
-        
+
         # Chat section (only for agent_chat page)
         if current_page == "agent_chat":
             _render_chat_section(user)
             st.markdown("---")
-        
+
         # Main menu - compact style
         st.markdown("**메뉴**")
-        
+
         # Emphasize if onboarding incomplete
         if not onboarding_status["completed"]:
             # Onboarding incomplete: Show onboarding prominently, disable main features
@@ -801,7 +802,7 @@ def _render_authenticated_sidebar(user, onboarding_status, current_page: str = N
                 disabled=False
             )
             st.caption("⚠️ 온보딩을 먼저 완료하세요")
-            
+
             # Main features disabled
             st.page_link("pages/agent_chat.py", label="🤖 에이전트 채팅", disabled=True)
             st.page_link("pages/dashboard.py", label="📊 대시보드", disabled=True)
@@ -809,26 +810,26 @@ def _render_authenticated_sidebar(user, onboarding_status, current_page: str = N
             # Onboarding complete: Enable all main features
             st.page_link("pages/agent_chat.py", label="🤖 에이전트 채팅")
             st.page_link("pages/dashboard.py", label="📊 대시보드")
-        
+
         # Spacer to push account info to bottom
         st.markdown("<div style='flex: 1;'></div>", unsafe_allow_html=True)
         st.markdown("---")
-        
+
         # Account info at bottom (clickable to open settings)
         _render_account_info(user, onboarding_status)
-        
+
         # Settings modal (rendered if opened)
         _render_settings_modal(user, onboarding_status)
 
 
 def _render_chat_section(user):
     """Render chat-specific sidebar section (only for agent_chat page)"""
-    from src.services.chat_service import ChatService
     from src.services.chat_project_service import ChatProjectService
-    
+    from src.services.chat_service import ChatService
+
     chat_service = ChatService()
     project_service = ChatProjectService()
-    
+
     # 새 채팅 버튼
     if st.button("✏️ 새 채팅", use_container_width=True, type="secondary", key="sidebar_new_chat_btn"):
         try:
@@ -840,7 +841,7 @@ def _render_chat_section(user):
             st.rerun()
         except Exception as e:
             st.error(f"Error: {str(e)}")
-    
+
     # 채팅 검색
     chat_search = st.text_input("🔍 채팅 검색", placeholder="검색어 입력...", key="sidebar_chat_search", label_visibility="collapsed")
     if chat_search:
@@ -854,22 +855,22 @@ def _render_chat_section(user):
                         st.write(msg.get('content', '')[:150] + "...")
         except Exception as e:
             st.error(f"검색 오류: {str(e)}")
-    
+
     st.markdown("---")
-    
+
     # 프로젝트 섹션
     st.markdown("**프로젝트**")
-    
+
     if "current_project_id" not in st.session_state:
         st.session_state.current_project_id = None
-    
+
     try:
         projects = run_async(project_service.get_projects(user.id))
-        
+
         # 새 프로젝트 버튼
         if st.button("➕ 새 프로젝트", use_container_width=True, type="secondary", key="sidebar_new_project_btn"):
             st.session_state.show_new_project_form = not st.session_state.get("show_new_project_form", False)
-        
+
         # 새 프로젝트 폼
         if st.session_state.get("show_new_project_form", False):
             with st.form("new_project_form", clear_on_submit=True):
@@ -880,11 +881,11 @@ def _render_chat_section(user):
                     submit = st.form_submit_button("생성", use_container_width=True)
                 with col2:
                     cancel = st.form_submit_button("취소", use_container_width=True)
-                
+
                 if cancel:
                     st.session_state.show_new_project_form = False
                     st.rerun()
-                
+
                 if submit and project_name:
                     try:
                         new_project = run_async(project_service.create_project(
@@ -897,7 +898,7 @@ def _render_chat_section(user):
                         st.rerun()
                     except Exception as e:
                         st.error(f"생성 실패: {str(e)}")
-        
+
         # 프로젝트 목록
         if projects:
             for project in projects:
@@ -905,10 +906,10 @@ def _render_chat_section(user):
                 name = project.get("name", "Unnamed")
                 project_id = project.get("id")
                 is_selected = st.session_state.current_project_id == project_id
-                
+
                 # 프로젝트 항목을 두 개의 컬럼으로 나눔: 이름 버튼과 삭제 버튼
                 col1, col2 = st.columns([5, 1])
-                
+
                 with col1:
                     if st.button(
                         f"{icon} {name}",
@@ -920,11 +921,11 @@ def _render_chat_section(user):
                         project_messages = run_async(chat_service.get_messages(user.id, project_id=project_id))
                         st.session_state.messages = project_messages
                         st.rerun()
-                
+
                 with col2:
                     # 삭제 확인 상태 확인
                     is_confirming = st.session_state.get(f"delete_project_confirm_{project_id}", False)
-                    
+
                     if is_confirming:
                         # 확인 모드: 삭제 확인 버튼 표시
                         if st.button(
@@ -962,15 +963,15 @@ def _render_chat_section(user):
                             # 삭제 확인을 위한 세션 상태 설정
                             st.session_state[f"delete_project_confirm_{project_id}"] = True
                             st.rerun()
-                
+
                 # 삭제 확인 중일 때 경고 메시지 표시
                 if st.session_state.get(f"delete_project_confirm_{project_id}", False):
                     st.caption(f"⚠️ '{name}' 삭제하려면 ✓ 클릭")
     except Exception as e:
         st.warning(f"프로젝트 로드 실패: {str(e)}")
-    
+
     st.markdown("---")
-    
+
     # 내 채팅 섹션
     st.markdown("**내 채팅**")
     try:
@@ -986,7 +987,7 @@ def _render_chat_section(user):
                 if content and content not in seen:
                     seen.add(content)
                     unique_messages.append(msg)
-            
+
             for idx, msg in enumerate(unique_messages[:20]):  # 최대 20개만 표시
                 title = msg.get("content", "채팅")[:30]
                 if st.button(
@@ -998,7 +999,7 @@ def _render_chat_section(user):
                     # 해당 채팅으로 이동 (간단 구현)
                     st.session_state.messages = [msg]
                     st.rerun()
-    except Exception as e:
+    except Exception:
         st.caption("채팅 목록을 불러올 수 없습니다.")
 
 
@@ -1007,7 +1008,7 @@ def _render_account_info(user, onboarding_status):
     # Initialize dropdown state
     if "show_account_dropdown" not in st.session_state:
         st.session_state.show_account_dropdown = False
-    
+
     # Get user profile info
     try:
         user_service = UserService()
@@ -1019,13 +1020,13 @@ def _render_account_info(user, onboarding_status):
         logger.debug(f"Could not load user profile: {e}")
         user_name = user.email.split("@")[0]
         user_email = user.email
-    
+
     # Get initials for avatar (first 2 letters)
     initials = "".join([c.upper() for c in user_name[:2] if c.isalpha()]) or user_name[0].upper() if user_name else "U"
-    
+
     # Account info container - clickable with dropdown
     account_container_id = "account-info-container"
-    
+
     # Render account info with dropdown
     st.markdown(f"""
     <div id="{account_container_id}" class="account-info" style="position: relative; color: rgba(38, 39, 48, 0.9);">
@@ -1166,7 +1167,7 @@ def _render_account_info(user, onboarding_status):
         }})();
     </script>
     """, unsafe_allow_html=True)
-    
+
     # Hidden buttons for settings and logout (completely hidden with CSS)
     col1, col2 = st.columns([1, 1])
     with col1:
@@ -1178,7 +1179,7 @@ def _render_account_info(user, onboarding_status):
             from src.middleware import auth_middleware
             auth_middleware.logout()
             st.rerun()
-    
+
     # Hide the buttons completely
     st.markdown("""
     <style>
@@ -1200,14 +1201,14 @@ def _render_account_info(user, onboarding_status):
     }
     </style>
     """, unsafe_allow_html=True)
-    
+
     # Also check URL parameter as fallback
     query_params = st.query_params
     if "account_action" in query_params:
         action = query_params["account_action"]
         # Remove from URL
         st.query_params.clear()
-        
+
         if action == "settings":
             st.session_state.show_settings_modal = True
             st.rerun()
@@ -1224,7 +1225,7 @@ def _render_settings_modal(user, onboarding_status):
         st.session_state.show_settings_modal = False
     if "settings_category" not in st.session_state:
         st.session_state.settings_category = "일반"
-    
+
     # Show modal if opened - render as popup using HTML/CSS
     if st.session_state.show_settings_modal:
         categories = {
@@ -1235,7 +1236,7 @@ def _render_settings_modal(user, onboarding_status):
             "도구": "🔧 MCP 도구",
             "API": "🔑 API 키"
         }
-        
+
         # Generate category buttons HTML
         category_buttons_html = ""
         for cat_key, cat_label in categories.items():
@@ -1248,10 +1249,10 @@ def _render_settings_modal(user, onboarding_status):
                 {cat_label}
             </button>
             '''
-        
+
         # Generate content HTML
         content_html = _generate_settings_content_html(st.session_state.settings_category, onboarding_status)
-        
+
         # Render modal popup - use JavaScript to append to body for proper positioning
         modal_html = f"""
         <div id="settings-modal-overlay" class="settings-modal-overlay" onclick="handleOverlayClick(event)">
@@ -1288,12 +1289,12 @@ def _render_settings_modal(user, onboarding_status):
             </div>
         </div>
         """
-        
+
         # 모달을 직접 body에 렌더링
         # HTML을 안전하게 이스케이프하여 JavaScript에 삽입
         import json
         modal_html_escaped = json.dumps(modal_html)
-        
+
         st.markdown(f"""
         <div id="settings-modal-container" style="display: none;">{modal_html}</div>
         <script>
@@ -1445,7 +1446,7 @@ def _render_settings_modal(user, onboarding_status):
         }})();
         </script>
         """, unsafe_allow_html=True)
-        
+
         # Hidden inputs to handle interactions
         # Category change handler
         category_input = st.text_input(
@@ -1457,7 +1458,7 @@ def _render_settings_modal(user, onboarding_status):
         if category_input != st.session_state.settings_category:
             st.session_state.settings_category = category_input
             st.rerun()
-        
+
         # Close handler
         close_input = st.checkbox(
             "Close",
@@ -1479,7 +1480,7 @@ def _generate_settings_content_html(category: str, onboarding_status: dict) -> s
             <p style="color: rgba(255, 255, 255, 0.7);">일반 설정은 준비 중입니다.</p>
         </div>
         """
-    
+
     elif category == "프로필":
         return """
         <div>
@@ -1503,7 +1504,7 @@ def _generate_settings_content_html(category: str, onboarding_status: dict) -> s
             >프로필 페이지로 이동 →</a>
         </div>
         """
-    
+
     elif category == "투자":
         return """
         <div>
@@ -1527,7 +1528,7 @@ def _generate_settings_content_html(category: str, onboarding_status: dict) -> s
             >투자 선호도 페이지로 이동 →</a>
         </div>
         """
-    
+
     elif category == "온보딩":
         if onboarding_status["completed"]:
             return """
@@ -1584,7 +1585,7 @@ def _generate_settings_content_html(category: str, onboarding_status: dict) -> s
                 >온보딩 시작하기 →</a>
             </div>
             """
-    
+
     elif category == "도구":
         return """
         <div>
@@ -1608,7 +1609,7 @@ def _generate_settings_content_html(category: str, onboarding_status: dict) -> s
             >MCP 도구 페이지로 이동 →</a>
         </div>
         """
-    
+
     elif category == "API":
         # API 키 설정은 Streamlit 컴포넌트가 필요하므로 안내 메시지 표시
         return """
@@ -1629,24 +1630,24 @@ def _generate_settings_content_html(category: str, onboarding_status: dict) -> s
             </div>
         </div>
         """
-    
+
     return ""
 
 
 def _render_api_key_settings():
     """Render API key settings section (expander 내부에서 사용)"""
-    
+
     # Initialize session_state
     if "user_openai_api_key" not in st.session_state:
         st.session_state.user_openai_api_key = ""
     if "user_anthropic_api_key" not in st.session_state:
         st.session_state.user_anthropic_api_key = ""
-    
+
     # Get default values from environment variables
     from config.settings import settings
     default_openai_key = settings.openai_api_key or ""
     default_anthropic_key = settings.anthropic_api_key or ""
-    
+
     # OpenAI API key input
     with st.expander("OpenAI API Key", expanded=False):
         current_openai_key = st.session_state.user_openai_api_key or default_openai_key
@@ -1654,7 +1655,7 @@ def _render_api_key_settings():
             # Display masked key
             masked_key = current_openai_key[:8] + "..." + current_openai_key[-4:] if len(current_openai_key) > 12 else "***"
             st.info(f"Currently set: `{masked_key}`")
-        
+
         new_openai_key = st.text_input(
             "Enter OpenAI API Key",
             value="",
@@ -1663,7 +1664,7 @@ def _render_api_key_settings():
             key="openai_key_input",
             help="Enter OpenAI API key. If not entered, environment variable value will be used."
         )
-        
+
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Save", key="save_openai_key", use_container_width=True):
@@ -1679,14 +1680,14 @@ def _render_api_key_settings():
                     st.info("Using environment variable value.")
                     st.session_state.llm_client_needs_reload = True
                     st.rerun()
-        
+
         with col2:
             if st.button("Clear", key="clear_openai_key", use_container_width=True):
                 st.session_state.user_openai_api_key = ""
                 st.info("Using environment variable value.")
                 st.session_state.llm_client_needs_reload = True
                 st.rerun()
-    
+
     # Anthropic API key input
     with st.expander("Anthropic API Key", expanded=False):
         current_anthropic_key = st.session_state.user_anthropic_api_key or default_anthropic_key
@@ -1694,7 +1695,7 @@ def _render_api_key_settings():
             # Display masked key
             masked_key = current_anthropic_key[:8] + "..." + current_anthropic_key[-4:] if len(current_anthropic_key) > 12 else "***"
             st.info(f"Currently set: `{masked_key}`")
-        
+
         new_anthropic_key = st.text_input(
             "Enter Anthropic API Key",
             value="",
@@ -1703,7 +1704,7 @@ def _render_api_key_settings():
             key="anthropic_key_input",
             help="Enter Anthropic API key. If not entered, environment variable value will be used."
         )
-        
+
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Save", key="save_anthropic_key", use_container_width=True):
@@ -1717,7 +1718,7 @@ def _render_api_key_settings():
                     st.info("Using environment variable value.")
                     st.session_state.llm_client_needs_reload = True
                     st.rerun()
-        
+
         with col2:
             if st.button("Clear", key="clear_anthropic_key", use_container_width=True):
                 st.session_state.user_anthropic_api_key = ""
@@ -1744,15 +1745,15 @@ def _check_onboarding_status(user_id: int) -> dict:
         preference_service = InvestmentPreferenceService()
         financial_situation_repo = FinancialSituationRepository(db)
         financial_goal_repo = FinancialGoalRepository(db)
-        
+
         # Check user profile
         user_with_profile = run_async(user_service.get_user_with_profile(user_id))
         has_profile = user_with_profile.profile is not None
-        
+
         # Check investment preference
         preference = run_async(preference_service.get_preference(user_id))
         has_preference = preference is not None
-        
+
         # Check financial situation
         has_financial_situation = False
         try:
@@ -1761,7 +1762,7 @@ def _check_onboarding_status(user_id: int) -> dict:
         except (DatabaseError, UserNotFoundError) as e:
             logger.debug(f"Could not check financial situation: {e}")
             pass
-        
+
         # Check financial goals (optional)
         has_financial_goals = False
         try:
@@ -1770,10 +1771,10 @@ def _check_onboarding_status(user_id: int) -> dict:
         except (DatabaseError, UserNotFoundError) as e:
             logger.debug(f"Could not check financial goals: {e}")
             pass
-        
+
         # Onboarding completion condition: profile, investment preference, and financial situation must all exist
         completed = has_profile and has_preference and has_financial_situation
-        
+
         return {
             "completed": completed,
             "has_profile": has_profile,
@@ -1781,7 +1782,7 @@ def _check_onboarding_status(user_id: int) -> dict:
             "has_financial_situation": has_financial_situation,
             "has_financial_goals": has_financial_goals
         }
-    except Exception as e:
+    except Exception:
         # Consider onboarding incomplete if error occurs
         return {
             "completed": False,

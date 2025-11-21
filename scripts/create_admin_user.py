@@ -10,10 +10,10 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.services import UserService
-from src.repositories import UserRepository
 from config.database import db
 from config.logging import get_logger
+from src.repositories import UserRepository
+from src.services import UserService
 
 logger = get_logger(__name__)
 
@@ -22,14 +22,14 @@ async def create_admin_user():
     """Create admin user if it doesn't exist"""
     user_service = UserService()
     user_repo = UserRepository(db)
-    
+
     # Check if admin user exists
     admin_user = await user_repo.get_by_email("admin")
-    
+
     if admin_user:
         print("✅ Admin user already exists")
         return admin_user
-    
+
     # Create admin user
     try:
         admin_user = await user_service.register(
@@ -42,8 +42,8 @@ async def create_admin_user():
             skip_validation=True  # Skip validation for admin account
         )
         print("✅ Admin user created successfully!")
-        print(f"   Email: admin")
-        print(f"   Password: admin")
+        print("   Email: admin")
+        print("   Password: admin")
         return admin_user
     except Exception as e:
         print(f"❌ Failed to create admin user: {e}")
@@ -55,7 +55,7 @@ async def main():
     print("=" * 60)
     print("Creating Admin User")
     print("=" * 60)
-    
+
     try:
         await create_admin_user()
         print("=" * 60)

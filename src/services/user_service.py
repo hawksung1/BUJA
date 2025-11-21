@@ -1,33 +1,32 @@
 """
 사용자 관리 및 인증 서비스
 """
-from typing import Optional, Dict, Any
-from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict, Optional
+
 from config.database import Database, db
-from src.repositories import (
-    UserRepository,
-    UserProfileRepository,
-    FinancialSituationRepository,
-    InvestmentPreferenceRepository,
-)
-from src.models import User, UserProfile, FinancialSituation, InvestmentPreference
-from src.utils.security import hash_password, verify_password
+from config.logging import get_logger
 from src.exceptions import (
+    InvalidCredentialsError,
     UserAlreadyExistsError,
     UserNotFoundError,
-    InvalidCredentialsError,
     ValidationError,
 )
+from src.models import FinancialSituation, InvestmentPreference, User, UserProfile
+from src.repositories import (
+    FinancialSituationRepository,
+    InvestmentPreferenceRepository,
+    UserProfileRepository,
+    UserRepository,
+)
+from src.utils.security import hash_password, verify_password
 from src.utils.validators import validate_email, validate_password
-from config.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 class UserService:
     """사용자 관리 및 인증 서비스"""
-    
+
     def __init__(self, database: Optional[Database] = None):
         """
         UserService 초기화
@@ -40,7 +39,7 @@ class UserService:
         self.profile_repo = UserProfileRepository(self.db)
         self.financial_repo = FinancialSituationRepository(self.db)
         self.preference_repo = InvestmentPreferenceRepository(self.db)
-    
+
     async def register(
         self,
         email: str,
@@ -71,22 +70,22 @@ class UserService:
         if not skip_validation:
             if not validate_email(email):
                 raise ValidationError("Invalid email format.")
-            
+
             if not validate_password(password):
                 raise ValidationError("Password must be at least 8 characters long.")
         else:
             # 최소한의 검증
             if not email or not password:
                 raise ValidationError("Email and password are required.")
-        
+
         # Check email duplication
         existing_user = await self.user_repo.get_by_email(email)
         if existing_user:
             raise UserAlreadyExistsError(f"Email already exists: {email}")
-        
+
         # 비밀번호 해싱
         password_hash = hash_password(password)
-        
+
         # 사용자 생성
         async with self.db.session() as session:
             user = await self.user_repo.create_user(
@@ -94,7 +93,7 @@ class UserService:
                 password_hash=password_hash,
                 session=session
             )
-            
+
             # 프로필 데이터가 있으면 프로필 생성
             if profile_data:
                 profile = UserProfile(
@@ -104,13 +103,13 @@ class UserService:
                     occupation=profile_data.get("occupation"),
                 )
                 await self.profile_repo.create(profile, session=session)
-            
+
             await session.commit()
             await session.refresh(user)
-            
+
             logger.info(f"User registered: {email}", extra={"user_id": user.id})
             return user
-    
+
     async def authenticate(self, email: str, password: str) -> Optional[User]:
         """
         사용자 인증 (로그인)
@@ -130,20 +129,20 @@ class UserService:
         if not user:
             logger.warning(f"Login attempt with non-existent email: {email}")
             raise InvalidCredentialsError("Invalid email or password.")
-        
+
         # Verify password
         if not verify_password(password, user.password_hash):
             logger.warning(f"Login attempt with wrong password: {email}")
             raise InvalidCredentialsError("Invalid email or password.")
-        
+
         # Check account activation
         if not user.is_active:
             logger.warning(f"Login attempt with inactive account: {email}")
             raise InvalidCredentialsError("Account is deactivated.")
-        
+
         logger.info(f"User authenticated: {email}", extra={"user_id": user.id})
         return user
-    
+
     async def get_user(self, user_id: int) -> User:
         """
         사용자 조회
@@ -161,7 +160,7 @@ class UserService:
         if not user:
             raise UserNotFoundError(f"User not found: {user_id}")
         return user
-    
+
     async def get_user_with_profile(self, user_id: int) -> User:
         """
         프로필과 함께 사용자 조회
@@ -179,7 +178,7 @@ class UserService:
         if not user:
             raise UserNotFoundError(f"User not found: {user_id}")
         return user
-    
+
     async def update_profile(
         self,
         user_id: int,
@@ -203,11 +202,11 @@ class UserService:
         """
         # 사용자 존재 확인
         user = await self.get_user(user_id)
-        
+
         async with self.db.session() as session:
             # 기존 프로필 조회 또는 생성
             profile = await self.profile_repo.get_by_user_id(user_id, session=session)
-            
+
             if profile:
                 # 프로필 업데이트
                 if "name" in profile_data:
@@ -216,7 +215,7 @@ class UserService:
                     profile.age = profile_data["age"]
                 if "occupation" in profile_data:
                     profile.occupation = profile_data["occupation"]
-                
+
                 profile = await self.profile_repo.update(profile, session=session)
             else:
                 # 새 프로필 생성
@@ -227,13 +226,13 @@ class UserService:
                     occupation=profile_data.get("occupation"),
                 )
                 profile = await self.profile_repo.create(profile, session=session)
-            
+
             await session.commit()
             await session.refresh(profile)
-            
+
             logger.info(f"Profile updated: user_id={user_id}")
             return profile
-    
+
     async def update_financial_situation(
         self,
         user_id: int,
@@ -261,11 +260,11 @@ class UserService:
         """
         # 사용자 존재 확인
         await self.get_user(user_id)
-        
+
         async with self.db.session() as session:
             # 기존 재무 상황 조회 또는 생성
             financial = await self.financial_repo.get_by_user_id(user_id, session=session)
-            
+
             if financial:
                 # 재무 상황 업데이트
                 if "monthly_income" in financial_data:
@@ -282,7 +281,7 @@ class UserService:
                     financial.family_members = financial_data["family_members"]
                 if "insurance_coverage" in financial_data:
                     financial.insurance_coverage = financial_data["insurance_coverage"]
-                
+
                 financial = await self.financial_repo.update(financial, session=session)
             else:
                 # 새 재무 상황 생성
@@ -297,13 +296,13 @@ class UserService:
                     insurance_coverage=financial_data.get("insurance_coverage"),
                 )
                 financial = await self.financial_repo.create(financial, session=session)
-            
+
             await session.commit()
             await session.refresh(financial)
-            
+
             logger.info(f"Financial situation updated: user_id={user_id}")
             return financial
-    
+
     async def update_investment_preference(
         self,
         user_id: int,
@@ -331,17 +330,17 @@ class UserService:
         """
         # 사용자 존재 확인
         await self.get_user(user_id)
-        
+
         # Validate risk tolerance
         if "risk_tolerance" in preference_data:
             risk_tolerance = preference_data["risk_tolerance"]
             if not isinstance(risk_tolerance, int) or risk_tolerance < 1 or risk_tolerance > 10:
                 raise ValidationError("Risk tolerance must be an integer between 1 and 10.")
-        
+
         async with self.db.session() as session:
             # 기존 투자 성향 조회 또는 생성
             preference = await self.preference_repo.get_by_user_id(user_id, session=session)
-            
+
             if preference:
                 # 투자 성향 업데이트
                 if "risk_tolerance" in preference_data:
@@ -362,13 +361,13 @@ class UserService:
                     preference.currency_hedge_preference = preference_data["currency_hedge_preference"]
                 if "home_country" in preference_data:
                     preference.home_country = preference_data["home_country"]
-                
+
                 preference = await self.preference_repo.update(preference, session=session)
             else:
                 # Create new investment preference
                 if "risk_tolerance" not in preference_data:
                     raise ValidationError("risk_tolerance is required.")
-                
+
                 preference = InvestmentPreference(
                     user_id=user_id,
                     risk_tolerance=preference_data["risk_tolerance"],
@@ -382,13 +381,13 @@ class UserService:
                     home_country=preference_data.get("home_country"),
                 )
                 preference = await self.preference_repo.create(preference, session=session)
-            
+
             await session.commit()
             await session.refresh(preference)
-            
+
             logger.info(f"Investment preference updated: user_id={user_id}")
             return preference
-    
+
     async def change_password(
         self,
         user_id: int,
@@ -413,26 +412,26 @@ class UserService:
         """
         # 사용자 조회
         user = await self.get_user(user_id)
-        
+
         # Verify old password
         if not verify_password(old_password, user.password_hash):
             raise InvalidCredentialsError("Current password is incorrect.")
-        
+
         # Validate new password
         if not validate_password(new_password):
             raise ValidationError("Password must be at least 8 characters long.")
-        
+
         # 비밀번호 변경
         new_password_hash = hash_password(new_password)
-        
+
         async with self.db.session() as session:
             user.password_hash = new_password_hash
             await self.user_repo.update(user, session=session)
             await session.commit()
-            
+
             logger.info(f"Password changed: user_id={user_id}")
             return True
-    
+
     async def deactivate_user(self, user_id: int) -> bool:
         """
         사용자 계정 비활성화
@@ -447,12 +446,12 @@ class UserService:
             UserNotFoundError: 사용자를 찾을 수 없는 경우
         """
         user = await self.get_user(user_id)
-        
+
         async with self.db.session() as session:
             user.is_active = False
             await self.user_repo.update(user, session=session)
             await session.commit()
-            
+
             logger.info(f"User deactivated: user_id={user_id}")
             return True
 

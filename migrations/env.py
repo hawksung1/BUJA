@@ -1,22 +1,21 @@
 """
 Alembic 마이그레이션 환경 설정
 """
+# 설정 모듈 import
+import sys
 from logging.config import fileConfig
+from pathlib import Path
+
+from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from alembic import context
-
-# 설정 모듈 import
-import sys
-from pathlib import Path
 
 # 프로젝트 루트를 Python 경로에 추가
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from config.settings import settings
-from config.database import db
 
 # Alembic Config 객체
 config = context.config
@@ -35,6 +34,7 @@ if config.config_file_name is not None:
 
 # 메타데이터 import
 from src.models import Base
+
 target_metadata = Base.metadata
 
 
@@ -64,7 +64,7 @@ async def run_migrations_online() -> None:
     """온라인 마이그레이션 실행 (비동기)"""
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = settings.database_url
-    
+
     connectable = async_engine_from_config(
         configuration,
         prefix="sqlalchemy.",

@@ -1,32 +1,33 @@
 """
 스크린샷 분석 서비스
 """
-from typing import Optional, Dict, Any, List
-from pathlib import Path
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from PIL import Image
+
 from config.database import Database, db
-from src.repositories import ScreenshotRepository
-from src.models import Screenshot
-from src.services.user_service import UserService
-from src.external.llm_client import get_llm_client
-from src.exceptions import (
-    UserNotFoundError,
-    ValidationError,
-    InvalidImageFormatError,
-    ImageUploadError,
-    ScreenshotAnalysisError,
-)
-from config.settings import settings
 from config.logging import get_logger
+from config.settings import settings
+from src.exceptions import (
+    ImageUploadError,
+    InvalidImageFormatError,
+    ScreenshotAnalysisError,
+    ValidationError,
+)
+from src.external.llm_client import get_llm_client
+from src.models import Screenshot
+from src.repositories import ScreenshotRepository
+from src.services.user_service import UserService
 
 logger = get_logger(__name__)
 
 
 class ScreenshotService:
     """스크린샷 분석 서비스"""
-    
+
     def __init__(self, database: Optional[Database] = None):
         """
         ScreenshotService 초기화
@@ -38,7 +39,7 @@ class ScreenshotService:
         self.screenshot_repo = ScreenshotRepository(self.db)
         self.user_service = UserService(self.db)
         self.llm_client = get_llm_client()
-    
+
     def validate_image(
         self,
         image_data: bytes,
@@ -59,23 +60,23 @@ class ScreenshotService:
             ImageUploadError: 이미지 크기가 초과된 경우
         """
         max_size = max_size or settings.max_upload_size
-        
+
         # 크기 검증
         if len(image_data) > max_size:
             raise ImageUploadError(f"이미지 크기가 {max_size / 1024 / 1024:.1f}MB를 초과합니다.")
-        
+
         # 이미지 형식 검증
         try:
             image = Image.open(BytesIO(image_data))
             image.verify()
-            
+
             # MIME 타입 확인
             image_format = image.format
             mime_type = f"image/{image_format.lower()}" if image_format else None
-            
+
             if mime_type not in settings.allowed_image_types:
                 raise InvalidImageFormatError(f"허용되지 않은 이미지 형식입니다: {mime_type}")
-            
+
             return {
                 "valid": True,
                 "format": image_format,
@@ -87,7 +88,7 @@ class ScreenshotService:
         except Exception as e:
             logger.error(f"Image validation failed: {e}")
             raise InvalidImageFormatError(f"Image validation failed: {str(e)}")
-    
+
     async def upload_screenshot(
         self,
         user_id: int,
@@ -113,15 +114,15 @@ class ScreenshotService:
         """
         # 사용자 존재 확인
         await self.user_service.get_user(user_id)
-        
+
         # 이미지 검증
         validation_result = self.validate_image(image_data)
-        
+
         # 파일 저장 경로 생성
         file_name = file_name or f"screenshot_{user_id}_{datetime.now().timestamp()}.{validation_result['format'].lower()}"
         file_path = Path(settings.data_dir if hasattr(settings, 'data_dir') else "data") / "screenshots" / file_name
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # 이미지 저장
         try:
             with open(file_path, "wb") as f:
@@ -129,7 +130,7 @@ class ScreenshotService:
         except Exception as e:
             logger.error(f"Failed to save image: {e}")
             raise ImageUploadError(f"Failed to save image: {str(e)}")
-        
+
         # 데이터베이스에 기록
         async with self.db.session() as session:
             screenshot = Screenshot(
@@ -142,10 +143,10 @@ class ScreenshotService:
             screenshot = await self.screenshot_repo.create(screenshot, session=session)
             await session.commit()
             await session.refresh(screenshot)
-            
+
             logger.info(f"Screenshot uploaded: user_id={user_id}, screenshot_id={screenshot.id}")
             return screenshot
-    
+
     async def analyze_screenshot(
         self,
         screenshot_id: int,
@@ -168,21 +169,21 @@ class ScreenshotService:
         screenshot = await self.screenshot_repo.get_by_id(screenshot_id)
         if not screenshot:
             raise ValidationError(f"Screenshot not found: {screenshot_id}")
-        
+
         if screenshot.user_id != user_id:
             raise ValidationError("본인의 스크린샷만 분석할 수 있습니다.")
-        
+
         # 분석 상태 업데이트
         async with self.db.session() as session:
             screenshot.analysis_status = "PROCESSING"
             await self.screenshot_repo.update(screenshot, session=session)
             await session.commit()
-        
+
         try:
             # 이미지 읽기
             with open(screenshot.file_path, "rb") as f:
                 image_data = f.read()
-            
+
             # LLM Vision API로 분석
             analysis_prompt = """
             이 포트폴리오 스크린샷을 분석하여 다음 정보를 JSON 형식으로 추출해주세요:
@@ -196,12 +197,12 @@ class ScreenshotService:
             
             JSON 형식으로만 응답해주세요.
             """
-            
+
             analysis_text = await self.llm_client.analyze_image(
                 image_data=image_data,
                 prompt=analysis_prompt
             )
-            
+
             # JSON 파싱 시도
             import json
             try:
@@ -209,7 +210,7 @@ class ScreenshotService:
             except json.JSONDecodeError:
                 # JSON이 아니면 텍스트로 저장
                 extracted_data = {"raw_analysis": analysis_text}
-            
+
             # 분석 결과 저장
             async with self.db.session() as session:
                 screenshot.extracted_data = extracted_data
@@ -217,26 +218,26 @@ class ScreenshotService:
                 await self.screenshot_repo.update(screenshot, session=session)
                 await session.commit()
                 await session.refresh(screenshot)
-            
+
             logger.info(f"Screenshot analyzed: screenshot_id={screenshot_id}")
-            
+
             return {
                 "screenshot_id": screenshot_id,
                 "extracted_data": extracted_data,
                 "status": "success"
             }
-        
+
         except Exception as e:
             logger.error(f"Screenshot analysis failed: {e}")
-            
+
             # 오류 상태 업데이트
             async with self.db.session() as session:
                 screenshot.analysis_status = "FAILED"
                 await self.screenshot_repo.update(screenshot, session=session)
                 await session.commit()
-            
+
             raise ScreenshotAnalysisError(f"Screenshot analysis failed: {str(e)}")
-    
+
     async def get_screenshots(
         self,
         user_id: int,
@@ -255,7 +256,7 @@ class ScreenshotService:
             Screenshot 리스트
         """
         return await self.screenshot_repo.get_by_user_id(user_id, skip=skip, limit=limit)
-    
+
     async def delete_screenshot(
         self,
         screenshot_id: int,
@@ -275,20 +276,20 @@ class ScreenshotService:
         screenshot = await self.screenshot_repo.get_by_id(screenshot_id)
         if not screenshot:
             raise ValidationError(f"Screenshot not found: {screenshot_id}")
-        
+
         if screenshot.user_id != user_id:
             raise ValidationError("본인의 스크린샷만 삭제할 수 있습니다.")
-        
+
         # 파일 삭제
         try:
             if Path(screenshot.file_path).exists():
                 Path(screenshot.file_path).unlink()
         except Exception as e:
             logger.warning(f"Failed to delete image file: {e}")
-        
+
         # 데이터베이스에서 삭제
         result = await self.screenshot_repo.delete(screenshot_id)
-        
+
         logger.info(f"Screenshot deleted: screenshot_id={screenshot_id}")
         return result
 

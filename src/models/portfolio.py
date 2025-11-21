@@ -3,10 +3,20 @@
 """
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional, Any, TYPE_CHECKING
-from sqlalchemy import String, ForeignKey, Numeric, Date, Integer, Text, func
+from typing import TYPE_CHECKING, Any, Optional
+
+from sqlalchemy import (
+    JSON,  # SQLite 호환: JSONB 대신 JSON 사용
+    Date,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import JSON  # SQLite 호환: JSONB 대신 JSON 사용
+
 from src.models.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
@@ -15,9 +25,9 @@ if TYPE_CHECKING:
 
 class Screenshot(Base, TimestampMixin):
     """스크린샷 모델"""
-    
+
     __tablename__ = "screenshots"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -34,7 +44,7 @@ class Screenshot(Base, TimestampMixin):
         nullable=False
     )  # PENDING, PROCESSING, COMPLETED, FAILED
     deleted_at: Mapped[Optional[datetime]] = mapped_column()
-    
+
     # 관계
     user: Mapped["User"] = relationship("User", back_populates="screenshots")
     portfolio_analyses: Mapped[list["PortfolioAnalysis"]] = relationship(
@@ -42,16 +52,16 @@ class Screenshot(Base, TimestampMixin):
         back_populates="screenshot",
         cascade="all, delete-orphan"
     )
-    
+
     def __repr__(self) -> str:
         return f"<Screenshot(id={self.id}, user_id={self.user_id}, app_type={self.app_type})>"
 
 
 class PortfolioAnalysis(Base):
     """포트폴리오 분석 모델"""
-    
+
     __tablename__ = "portfolio_analyses"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -72,23 +82,23 @@ class PortfolioAnalysis(Base):
         server_default=func.now(),
         nullable=False
     )
-    
+
     # 관계
     user: Mapped["User"] = relationship("User", back_populates="portfolio_analyses")
     screenshot: Mapped[Optional["Screenshot"]] = relationship(
         "Screenshot",
         back_populates="portfolio_analyses"
     )
-    
+
     def __repr__(self) -> str:
         return f"<PortfolioAnalysis(id={self.id}, user_id={self.user_id}, analysis_date={self.analysis_date})>"
 
 
 class AssetRecommendation(Base):
     """자산 추천 모델"""
-    
+
     __tablename__ = "asset_recommendations"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -106,7 +116,7 @@ class AssetRecommendation(Base):
         nullable=False
     )
     expires_at: Mapped[Optional[datetime]] = mapped_column()
-    
+
     # 관계
     user: Mapped["User"] = relationship("User", back_populates="asset_recommendations")
     rebalancing_history: Mapped[list["RebalancingHistory"]] = relationship(
@@ -114,16 +124,16 @@ class AssetRecommendation(Base):
         back_populates="recommendation",
         cascade="all, delete-orphan"
     )
-    
+
     def __repr__(self) -> str:
         return f"<AssetRecommendation(id={self.id}, user_id={self.user_id}, type={self.recommendation_type})>"
 
 
 class RebalancingHistory(Base):
     """리밸런싱 이력 모델"""
-    
+
     __tablename__ = "rebalancing_history"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -141,13 +151,13 @@ class RebalancingHistory(Base):
         server_default=func.now(),
         nullable=False
     )
-    
+
     # 관계
     recommendation: Mapped[Optional["AssetRecommendation"]] = relationship(
         "AssetRecommendation",
         back_populates="rebalancing_history"
     )
-    
+
     def __repr__(self) -> str:
         return f"<RebalancingHistory(id={self.id}, user_id={self.user_id})>"
 

@@ -2,7 +2,7 @@
 데이터 검증 유틸리티
 """
 import re
-from typing import Optional
+
 from src.exceptions import ValidationError
 
 
@@ -21,11 +21,11 @@ def validate_email(email: str) -> bool:
     """
     if not email:
         raise ValidationError("이메일 주소는 필수입니다.")
-    
+
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     if not re.match(pattern, email):
         raise ValidationError("유효하지 않은 이메일 형식입니다.")
-    
+
     return True
 
 
@@ -45,20 +45,20 @@ def validate_password(password: str, min_length: int = 8) -> bool:
     """
     if not password:
         raise ValidationError("비밀번호는 필수입니다.")
-    
+
     if len(password) < min_length:
         raise ValidationError(f"비밀번호는 최소 {min_length}자 이상이어야 합니다.")
-    
+
     # 영문, 숫자, 특수문자 중 2가지 이상 포함
     has_letter = bool(re.search(r'[a-zA-Z]', password))
     has_digit = bool(re.search(r'\d', password))
     has_special = bool(re.search(r'[!@#$%^&*(),.?":{}|<>]', password))
-    
+
     if sum([has_letter, has_digit, has_special]) < 2:
         raise ValidationError(
             "비밀번호는 영문, 숫자, 특수문자 중 2가지 이상을 포함해야 합니다."
         )
-    
+
     return True
 
 

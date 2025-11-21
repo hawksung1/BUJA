@@ -194,3 +194,4 @@ datetime.now(datetime.UTC)
 **테스트 실행 환경**: Windows, Python 3.14.0, pytest 9.0.1
 
 
+

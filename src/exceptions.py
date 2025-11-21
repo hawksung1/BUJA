@@ -6,7 +6,7 @@ from typing import Optional
 
 class BUJAException(Exception):
     """BUJA 프로젝트 기본 예외 클래스"""
-    
+
     def __init__(self, message: str, error_code: Optional[str] = None):
         """
         Args:

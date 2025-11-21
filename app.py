@@ -2,13 +2,14 @@
 BUJA Main Streamlit App
 """
 import streamlit as st
-from src.middleware import auth_middleware
-from src.utils.async_helpers import run_async
-from src.services import UserService
-from src.repositories import UserRepository
+
 from config.database import db
 from config.logging import get_logger
 from config.settings import settings
+from src.middleware import auth_middleware
+from src.repositories import UserRepository
+from src.services import UserService
+from src.utils.async_helpers import run_async
 
 logger = get_logger(__name__)
 
@@ -41,12 +42,12 @@ if "admin_initialized" not in st.session_state:
                 logger.info("Admin user created successfully")
         except Exception as e:
             logger.warning(f"Admin initialization skipped: {e}")
-    
+
     try:
         run_async(init_admin())
     except Exception as e:
         logger.warning(f"Admin initialization failed: {e}")
-    
+
     st.session_state.admin_initialized = True
 
 # Redirect to login if not authenticated, otherwise to chat

@@ -1,20 +1,22 @@
 """
 인증 미들웨어 (Streamlit용)
 """
-from typing import Optional, Callable, Any
 import logging
+from typing import Callable, Optional
+
 import streamlit as st
-from src.services.user_service import UserService
-from src.models import User
-from src.exceptions import AuthenticationError, UserNotFoundError
+
 from config.logging import get_logger
+from src.exceptions import AuthenticationError, UserNotFoundError
+from src.models import User
+from src.services.user_service import UserService
 
 logger = get_logger(__name__)
 
 
 class AuthMiddleware:
     """인증 미들웨어"""
-    
+
     def __init__(self, user_service: Optional[UserService] = None):
         """
         AuthMiddleware 초기화
@@ -23,7 +25,7 @@ class AuthMiddleware:
             user_service: UserService 인스턴스 (기본값: 새 인스턴스 생성)
         """
         self.user_service = user_service or UserService()
-    
+
     def get_current_user(self) -> Optional[User]:
         """
         현재 로그인한 사용자 조회 (Streamlit Session State)
@@ -37,7 +39,7 @@ class AuthMiddleware:
             logger.debug(f"Session state keys: {list(st.session_state.keys())}")
             logger.debug(f"user_id in session: {'user_id' in st.session_state}")
             logger.debug(f"user in session: {'user' in st.session_state}")
-        
+
         # Streamlit 세션 상태는 새로고침 시 초기화될 수 있으므로
         # 초기화 플래그를 확인하여 복원 시도
         if "_session_restored" not in st.session_state:
@@ -45,12 +47,12 @@ class AuthMiddleware:
             # Streamlit은 세션 상태를 자동으로 복원하므로, 여기서는 로깅만 수행
             st.session_state._session_restored = True
             logger.debug("Session restored, checking for user_id")
-        
+
         # user_id가 있으면 먼저 확인 (새로고침 후에도 유지되어야 함)
         if "user_id" in st.session_state:
             user_id = st.session_state.user_id
             logger.debug(f"Found user_id in session: {user_id}", extra={"user_id": user_id})
-            
+
             # 캐시된 user 객체가 있으면 사용
             if "user" in st.session_state and st.session_state.user:
                 # user_id가 일치하는지 확인
@@ -59,7 +61,7 @@ class AuthMiddleware:
                     return st.session_state.user
                 else:
                     logger.debug("Cached user ID mismatch, reloading from DB")
-            
+
             # user 객체가 없거나 불일치하면 DB에서 조회
             try:
                 from src.utils.async_helpers import run_async
@@ -85,15 +87,15 @@ class AuthMiddleware:
                 if "user" in st.session_state:
                     del st.session_state.user
                 return None
-        
+
         # 기존 user 객체가 있으면 반환 (하위 호환성)
         if "user" in st.session_state:
             logger.debug("Using existing user object from session")
             return st.session_state.user
-        
+
         logger.debug("No user found in session")
         return None
-    
+
     def is_authenticated(self) -> bool:
         """
         사용자 인증 여부 확인
@@ -102,7 +104,7 @@ class AuthMiddleware:
             인증되어 있으면 True
         """
         return self.get_current_user() is not None
-    
+
     def require_auth(self, redirect_to: str = "pages/login.py"):
         """
         인증이 필요한 페이지에서 사용하는 데코레이터
@@ -121,7 +123,7 @@ class AuthMiddleware:
                 return func(*args, **kwargs)
             return wrapper
         return decorator
-    
+
     async def login(self, email: str, password: str) -> User:
         """
         사용자 로그인
@@ -147,7 +149,7 @@ class AuthMiddleware:
         except Exception as e:
             logger.error(f"Login failed: {e}", extra={"email": email})
             raise AuthenticationError(f"Login failed: {str(e)}")
-    
+
     def logout(self) -> None:
         """
         사용자 로그아웃
@@ -158,7 +160,7 @@ class AuthMiddleware:
             del st.session_state.user
         if "user_id" in st.session_state:
             del st.session_state.user_id
-    
+
     async def get_user_profile(self) -> Optional[User]:
         """
         현재 사용자의 프로필 조회
@@ -169,7 +171,7 @@ class AuthMiddleware:
         user = self.get_current_user()
         if not user:
             return None
-        
+
         try:
             return await self.user_service.get_user_with_profile(user.id)
         except UserNotFoundError:

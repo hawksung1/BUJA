@@ -1,27 +1,28 @@
 """
 추천 서비스
 """
-from typing import Dict, Any, Optional
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Any, Dict, Optional
+
 from config.database import Database, db
+from config.logging import get_logger
+from src.analyzers.asset_allocator import AssetAllocator
+from src.exceptions import ValidationError
+from src.models import AssetRecommendation
 from src.repositories import (
     AssetRecommendationRepository,
-    InvestmentPreferenceRepository,
     FinancialSituationRepository,
+    InvestmentPreferenceRepository,
 )
-from src.models import AssetRecommendation
-from src.analyzers.asset_allocator import AssetAllocator
 from src.services.user_service import UserService
-from src.exceptions import UserNotFoundError, ValidationError
-from config.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 class RecommendationService:
     """추천 서비스"""
-    
+
     def __init__(self, database: Optional[Database] = None):
         """
         RecommendationService 초기화
@@ -36,7 +37,7 @@ class RecommendationService:
         self.allocator = AssetAllocator()
         self._agent = None  # Lazy loading to avoid circular import
         self.user_service = UserService(self.db)
-    
+
     @property
     def agent(self):
         """Lazy load InvestmentAgent to avoid circular import"""
@@ -44,7 +45,7 @@ class RecommendationService:
             from src.agents.investment_agent import InvestmentAgent
             self._agent = InvestmentAgent()
         return self._agent
-    
+
     async def generate_initial_recommendation(
         self,
         user_id: int
@@ -60,17 +61,17 @@ class RecommendationService:
         """
         # 사용자 존재 확인
         await self.user_service.get_user(user_id)
-        
+
         # 투자 성향 조회
         preference = await self.preference_repo.get_by_user_id(user_id)
         if not preference:
             raise ValidationError("투자 성향이 설정되지 않았습니다.")
-        
+
         # 재무 상황 조회
         financial = await self.financial_repo.get_by_user_id(user_id)
         if not financial or not financial.total_assets:
             raise ValidationError("재무 상황이 설정되지 않았습니다.")
-        
+
         # 자산 배분 계산 (글로벌 포트폴리오 포함)
         allocation_result = self.allocator.calculate_initial_allocation(
             risk_tolerance=preference.risk_tolerance,
@@ -80,7 +81,7 @@ class RecommendationService:
             home_country=preference.home_country,
             currency_hedge_preference=preference.currency_hedge_preference
         )
-        
+
         # Agent를 통한 추천 근거 생성
         context = {
             "investment_preference": {
@@ -91,13 +92,13 @@ class RecommendationService:
                 "total_assets": float(financial.total_assets),
             }
         }
-        
+
         reasoning_prompt = (
             f"다음 자산 배분을 추천합니다: {allocation_result['allocation_percentages']}. "
             f"이 추천의 근거를 설명해주세요."
         )
         reasoning = await self.agent.chat(reasoning_prompt, context=context)
-        
+
         # 추천 저장
         async with self.db.session() as session:
             recommendation = AssetRecommendation(
@@ -113,10 +114,10 @@ class RecommendationService:
             recommendation = await self.recommendation_repo.create(recommendation, session=session)
             await session.commit()
             await session.refresh(recommendation)
-            
+
             logger.info(f"Initial recommendation generated: user_id={user_id}")
             return recommendation
-    
+
     async def get_latest_recommendation(
         self,
         user_id: int,
@@ -136,7 +137,7 @@ class RecommendationService:
             user_id=user_id,
             recommendation_type=recommendation_type
         )
-    
+
     async def explain_recommendation(
         self,
         recommendation_id: int
@@ -153,32 +154,32 @@ class RecommendationService:
         recommendation = await self.recommendation_repo.get_by_id(recommendation_id)
         if not recommendation:
             raise ValidationError("Recommendation not found.")
-        
+
         if recommendation.reasoning:
             return recommendation.reasoning
-        
+
         # Agent를 통한 설명 생성
         prompt = (
             f"다음 자산 배분 추천에 대해 자세히 설명해주세요: "
             f"{recommendation.target_allocation}"
         )
-        
+
         context = {
             "investment_preference": {
                 "risk_tolerance": "N/A",
             }
         }
-        
+
         explanation = await self.agent.chat(prompt, context=context)
-        
+
         # 설명 저장
         async with self.db.session() as session:
             recommendation.reasoning = explanation
             await self.recommendation_repo.update(recommendation, session=session)
             await session.commit()
-        
+
         return explanation
-    
+
     async def generate_recommendation(
         self,
         user_id: int,
@@ -199,11 +200,11 @@ class RecommendationService:
         try:
             # 최신 추천 조회 또는 새로 생성
             recommendation = await self.get_latest_recommendation(user_id)
-            
+
             if not recommendation:
                 # 새 추천 생성
                 recommendation = await self.generate_initial_recommendation(user_id)
-            
+
             result = {
                 "recommendation_type": recommendation.recommendation_type,
                 "target_allocation": recommendation.target_allocation,
@@ -211,15 +212,15 @@ class RecommendationService:
                 "risk_assessment": recommendation.risk_assessment,
                 "confidence_score": float(recommendation.confidence_score) if recommendation.confidence_score else None,
             }
-            
+
             if include_rationale and recommendation.reasoning:
                 result["rationale"] = recommendation.reasoning
             elif include_rationale:
                 # 근거 생성
                 result["rationale"] = await self.explain_recommendation(recommendation.id)
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Failed to generate recommendation: {e}", exc_info=True)
             raise

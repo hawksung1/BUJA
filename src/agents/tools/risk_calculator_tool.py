@@ -1,24 +1,25 @@
 """
 리스크 계산 Tool
 """
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+from config.logging import get_logger
 from src.agents.tools.base_tool import BaseTool
 from src.analyzers.risk_analyzer import RiskAnalyzer
-from config.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 class RiskCalculatorTool(BaseTool):
     """리스크 계산 Tool"""
-    
+
     def __init__(self):
         super().__init__(
             name="calculate_risk",
             description="포트폴리오의 리스크를 계산합니다. VaR, Sharpe Ratio, 최대 낙폭 등을 계산합니다."
         )
         self.risk_analyzer = RiskAnalyzer()
-    
+
     def get_parameters_schema(self) -> Dict[str, Any]:
         return {
             "type": "object",
@@ -36,7 +37,7 @@ class RiskCalculatorTool(BaseTool):
             },
             "required": ["portfolio_data"]
         }
-    
+
     async def execute(self, portfolio_data: Dict[str, Any], risk_metrics: Optional[list] = None, **kwargs) -> Dict[str, Any]:
         """
         리스크 계산 실행
@@ -51,15 +52,15 @@ class RiskCalculatorTool(BaseTool):
         try:
             if risk_metrics is None:
                 risk_metrics = ["var", "sharpe"]
-            
+
             result = await self.risk_analyzer.calculate_risk(portfolio_data, risk_metrics)
-            
-            logger.info(f"Risk calculation completed")
+
+            logger.info("Risk calculation completed")
             return {
                 "status": "success",
                 "risk_metrics": result
             }
-            
+
         except Exception as e:
             logger.error(f"Risk calculation error: {e}", exc_info=True)
             return {

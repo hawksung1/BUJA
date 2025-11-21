@@ -2,8 +2,9 @@
 Dashboard Page
 """
 import streamlit as st
+
 from src.middleware import auth_middleware
-from src.services import PortfolioService, InvestmentPreferenceService, InvestmentService
+from src.services import InvestmentPreferenceService, InvestmentService, PortfolioService
 from src.utils.async_helpers import run_async
 
 st.set_page_config(
@@ -24,6 +25,7 @@ st.title(f"📊 Dashboard - {user.email if user else 'User'}")
 
 # 공통 사이드바 렌더링
 from src.utils.sidebar import render_sidebar
+
 render_sidebar()
 
 # Main content - Load actual data
@@ -31,7 +33,7 @@ try:
     portfolio_service = PortfolioService()
     preference_service = InvestmentPreferenceService()
     investment_service = InvestmentService()
-    
+
     # Get portfolio summary
     try:
         portfolio_summary = run_async(portfolio_service.get_portfolio_summary(user.id))
@@ -40,20 +42,20 @@ try:
     except Exception:
         total_assets = 0
         total_return = 0
-    
+
     # Get investment preference
     try:
         preference = run_async(preference_service.get_preference(user.id))
         risk_tolerance = f"{preference.risk_tolerance}/10" if preference else "Not Set"
     except Exception:
         risk_tolerance = "Not Set"
-    
+
     # Get recent investments
     try:
         recent_investments = run_async(investment_service.get_investments(user.id, skip=0, limit=5))
     except Exception:
         recent_investments = []
-    
+
 except Exception as e:
     st.error(f"Error loading data: {str(e)}")
     total_assets = 0

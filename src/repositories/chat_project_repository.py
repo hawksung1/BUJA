@@ -1,9 +1,11 @@
 """
 Chat Project Repository 구현
 """
-from typing import Optional, List
+from typing import List, Optional
+
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+
 from config.database import Database
 from src.models.chat_project import ChatProject
 from src.repositories.base_repository import BaseRepository
@@ -11,10 +13,10 @@ from src.repositories.base_repository import BaseRepository
 
 class ChatProjectRepository(BaseRepository):
     """Chat Project Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, ChatProject)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -24,7 +26,7 @@ class ChatProjectRepository(BaseRepository):
         query = select(ChatProject).where(
             ChatProject.user_id == user_id
         ).order_by(desc(ChatProject.created_at))
-        
+
         if session:
             result = await session.execute(query)
             return list(result.scalars().all())
@@ -32,7 +34,7 @@ class ChatProjectRepository(BaseRepository):
             async with self.db.session() as session:
                 result = await session.execute(query)
                 return list(result.scalars().all())
-    
+
     async def get_by_id(
         self,
         project_id: int,
@@ -44,7 +46,7 @@ class ChatProjectRepository(BaseRepository):
             ChatProject.id == project_id,
             ChatProject.user_id == user_id
         )
-        
+
         if session:
             result = await session.execute(query)
             return result.scalar_one_or_none()
@@ -52,7 +54,7 @@ class ChatProjectRepository(BaseRepository):
             async with self.db.session() as session:
                 result = await session.execute(query)
                 return result.scalar_one_or_none()
-    
+
     async def create_project(
         self,
         user_id: int,
@@ -68,7 +70,7 @@ class ChatProjectRepository(BaseRepository):
             description=description,
             icon=icon
         )
-        
+
         if session:
             session.add(project)
             await session.flush()
@@ -80,7 +82,7 @@ class ChatProjectRepository(BaseRepository):
                 await session.flush()
                 await session.refresh(project)
                 return project
-    
+
     async def update_project(
         self,
         project_id: int,
@@ -94,14 +96,14 @@ class ChatProjectRepository(BaseRepository):
         project = await self.get_by_id(project_id, user_id, session)
         if not project:
             return None
-        
+
         if name is not None:
             project.name = name
         if description is not None:
             project.description = description
         if icon is not None:
             project.icon = icon
-        
+
         if session:
             await session.flush()
             await session.refresh(project)
@@ -112,7 +114,7 @@ class ChatProjectRepository(BaseRepository):
                 await session.flush()
                 await session.refresh(project)
                 return project
-    
+
     async def delete_project(
         self,
         project_id: int,
@@ -123,7 +125,7 @@ class ChatProjectRepository(BaseRepository):
         project = await self.get_by_id(project_id, user_id, session)
         if not project:
             return False
-        
+
         if session:
             await session.delete(project)
             await session.flush()

@@ -1,27 +1,27 @@
 """
 Investment Repository 구현
 """
-from typing import Optional, List, Dict, Any
-from datetime import date
 from decimal import Decimal
+from typing import List, Optional
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_
-from sqlalchemy.orm import selectinload
+
 from config.database import Database
-from src.models.investment import InvestmentPreference, InvestmentRecord
-from src.models.financial import FinancialSituation, FinancialGoal
-from src.repositories.base_repository import BaseRepository
 from config.logging import get_logger
+from src.models.financial import FinancialGoal, FinancialSituation
+from src.models.investment import InvestmentPreference, InvestmentRecord
+from src.repositories.base_repository import BaseRepository
 
 logger = get_logger(__name__)
 
 
 class InvestmentPreferenceRepository(BaseRepository):
     """InvestmentPreference Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, InvestmentPreference)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -38,20 +38,20 @@ class InvestmentPreferenceRepository(BaseRepository):
             InvestmentPreference 또는 None
         """
         query = select(InvestmentPreference).where(InvestmentPreference.user_id == user_id)
-        
+
         async def _get_by_user_id(sess: AsyncSession) -> Optional[InvestmentPreference]:
             result = await sess.execute(query)
             return result.scalar_one_or_none()
-        
+
         return await self._execute_with_session(_get_by_user_id, session)
 
 
 class InvestmentRecordRepository(BaseRepository):
     """InvestmentRecord Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, InvestmentRecord)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -78,13 +78,13 @@ class InvestmentRecordRepository(BaseRepository):
             .offset(skip)
             .limit(limit)
         )
-        
+
         async def _get_by_user_id(sess: AsyncSession) -> List[InvestmentRecord]:
             result = await sess.execute(query)
             return list(result.scalars().all())
-        
+
         return await self._execute_with_session(_get_by_user_id, session)
-    
+
     async def get_by_asset_type(
         self,
         user_id: int,
@@ -108,13 +108,13 @@ class InvestmentRecordRepository(BaseRepository):
             .where(InvestmentRecord.asset_type == asset_type)
             .order_by(InvestmentRecord.buy_date.desc())
         )
-        
+
         async def _get_by_asset_type(sess: AsyncSession) -> List[InvestmentRecord]:
             result = await sess.execute(query)
             return list(result.scalars().all())
-        
+
         return await self._execute_with_session(_get_by_asset_type, session)
-    
+
     async def get_realized(
         self,
         user_id: int,
@@ -136,13 +136,13 @@ class InvestmentRecordRepository(BaseRepository):
             .where(InvestmentRecord.realized == True)
             .order_by(InvestmentRecord.sell_date.desc())
         )
-        
+
         async def _get_realized(sess: AsyncSession) -> List[InvestmentRecord]:
             result = await sess.execute(query)
             return list(result.scalars().all())
-        
+
         return await self._execute_with_session(_get_realized, session)
-    
+
     async def get_unrealized(
         self,
         user_id: int,
@@ -164,13 +164,13 @@ class InvestmentRecordRepository(BaseRepository):
             .where(InvestmentRecord.realized == False)
             .order_by(InvestmentRecord.buy_date.desc())
         )
-        
+
         async def _get_unrealized(sess: AsyncSession) -> List[InvestmentRecord]:
             result = await sess.execute(query)
             return list(result.scalars().all())
-        
+
         return await self._execute_with_session(_get_unrealized, session)
-    
+
     async def get_total_investment_value(
         self,
         user_id: int,
@@ -191,21 +191,21 @@ class InvestmentRecordRepository(BaseRepository):
             .where(InvestmentRecord.user_id == user_id)
             .where(InvestmentRecord.realized == False)
         )
-        
+
         async def _get_total_value(sess: AsyncSession) -> Decimal:
             result = await sess.execute(query)
             value = result.scalar_one() or Decimal("0")
             return value
-        
+
         return await self._execute_with_session(_get_total_value, session)
 
 
 class FinancialSituationRepository(BaseRepository[FinancialSituation]):
     """FinancialSituation Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, FinancialSituation)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -222,20 +222,20 @@ class FinancialSituationRepository(BaseRepository[FinancialSituation]):
             FinancialSituation 또는 None
         """
         query = select(FinancialSituation).where(FinancialSituation.user_id == user_id)
-        
+
         async def _get_by_user_id(sess: AsyncSession) -> Optional[FinancialSituation]:
             result = await sess.execute(query)
             return result.scalar_one_or_none()
-        
+
         return await self._execute_with_session(_get_by_user_id, session)
 
 
 class FinancialGoalRepository(BaseRepository[FinancialGoal]):
     """FinancialGoal Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, FinancialGoal)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -262,13 +262,13 @@ class FinancialGoalRepository(BaseRepository[FinancialGoal]):
             .offset(skip)
             .limit(limit)
         )
-        
+
         async def _get_by_user_id(sess: AsyncSession) -> List[FinancialGoal]:
             result = await sess.execute(query)
             return list(result.scalars().all())
-        
+
         return await self._execute_with_session(_get_by_user_id, session)
-    
+
     async def get_by_goal_type(
         self,
         user_id: int,
@@ -292,10 +292,10 @@ class FinancialGoalRepository(BaseRepository[FinancialGoal]):
             .where(FinancialGoal.goal_type == goal_type)
             .order_by(FinancialGoal.priority.asc())
         )
-        
+
         async def _get_by_goal_type(sess: AsyncSession) -> List[FinancialGoal]:
             result = await sess.execute(query)
             return list(result.scalars().all())
-        
+
         return await self._execute_with_session(_get_by_goal_type, session)
 

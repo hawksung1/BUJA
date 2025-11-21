@@ -1,23 +1,22 @@
 """
 투자 기록 관리 서비스
 """
-from typing import Optional, List, Dict, Any
-from datetime import date
 from decimal import Decimal
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Any, Dict, List, Optional
+
 from config.database import Database, db
-from src.repositories import InvestmentRecordRepository
-from src.models import InvestmentRecord
-from src.services.user_service import UserService
-from src.exceptions import UserNotFoundError, InvestmentRecordNotFoundError, ValidationError
 from config.logging import get_logger
+from src.exceptions import InvestmentRecordNotFoundError, ValidationError
+from src.models import InvestmentRecord
+from src.repositories import InvestmentRecordRepository
+from src.services.user_service import UserService
 
 logger = get_logger(__name__)
 
 
 class InvestmentService:
     """투자 기록 관리 서비스"""
-    
+
     def __init__(self, database: Optional[Database] = None):
         """
         InvestmentService 초기화
@@ -28,7 +27,7 @@ class InvestmentService:
         self.db = database or db
         self.record_repo = InvestmentRecordRepository(self.db)
         self.user_service = UserService(self.db)
-    
+
     async def create_investment_record(
         self,
         user_id: int,
@@ -53,13 +52,13 @@ class InvestmentService:
         """
         # 사용자 존재 확인
         await self.user_service.get_user(user_id)
-        
+
         # 필수 필드 검증
         required_fields = ["asset_type", "quantity", "buy_price", "buy_date"]
         for field in required_fields:
             if field not in record_data:
                 raise ValidationError(f"{field} is required.")
-        
+
         # 투자 기록 생성
         async with self.db.session() as session:
             record = InvestmentRecord(
@@ -78,10 +77,10 @@ class InvestmentService:
             record = await self.record_repo.create(record, session=session)
             await session.commit()
             await session.refresh(record)
-            
+
             logger.info(f"Investment record created: user_id={user_id}, record_id={record.id}")
             return record
-    
+
     async def update_investment_record(
         self,
         record_id: int,
@@ -103,10 +102,10 @@ class InvestmentService:
         record = await self.record_repo.get_by_id(record_id)
         if not record:
             raise InvestmentRecordNotFoundError(f"Investment record not found: {record_id}")
-        
+
         if record.user_id != user_id:
             raise ValidationError("본인의 투자 기록만 수정할 수 있습니다.")
-        
+
         # 업데이트
         async with self.db.session() as session:
             if "quantity" in record_data:
@@ -129,7 +128,7 @@ class InvestmentService:
                 record.notes = record_data["notes"]
             if "realized" in record_data:
                 record.realized = record_data["realized"]
-            
+
             # 손익 계산
             if record.sell_price and record.quantity and record.buy_price:
                 profit_loss = (
@@ -138,14 +137,14 @@ class InvestmentService:
                     + record.dividend_interest
                 )
                 record.profit_loss = profit_loss
-            
+
             record = await self.record_repo.update(record, session=session)
             await session.commit()
             await session.refresh(record)
-            
+
             logger.info(f"Investment record updated: record_id={record_id}")
             return record
-    
+
     async def delete_investment_record(
         self,
         record_id: int,
@@ -165,16 +164,16 @@ class InvestmentService:
         record = await self.record_repo.get_by_id(record_id)
         if not record:
             raise InvestmentRecordNotFoundError(f"Investment record not found: {record_id}")
-        
+
         if record.user_id != user_id:
             raise ValidationError("본인의 투자 기록만 삭제할 수 있습니다.")
-        
+
         # 삭제
         result = await self.record_repo.delete(record_id)
-        
+
         logger.info(f"Investment record deleted: record_id={record_id}")
         return result
-    
+
     async def get_investment_records(
         self,
         user_id: int,
@@ -198,7 +197,7 @@ class InvestmentService:
         """
         # 사용자 존재 확인
         await self.user_service.get_user(user_id)
-        
+
         if asset_type:
             records = await self.record_repo.get_by_asset_type(user_id, asset_type)
         elif realized is True:
@@ -207,9 +206,9 @@ class InvestmentService:
             records = await self.record_repo.get_unrealized(user_id)
         else:
             records = await self.record_repo.get_by_user_id(user_id, skip=skip, limit=limit)
-        
+
         return records
-    
+
     async def calculate_total_investment_value(
         self,
         user_id: int
@@ -224,8 +223,8 @@ class InvestmentService:
             총 투자 가치
         """
         return await self.record_repo.get_total_investment_value(user_id)
-    
-    
+
+
     async def get_investment_statistics(
         self,
         user_id: int
@@ -244,7 +243,7 @@ class InvestmentService:
             all_records = await self.record_repo.get_by_user_id(user_id, session=session)
             realized_records = await self.record_repo.get_realized(user_id, session=session)
             unrealized_records = await self.record_repo.get_unrealized(user_id, session=session)
-            
+
             # 자산 유형별 통계
             asset_type_stats = {}
             for record in all_records:
@@ -258,22 +257,22 @@ class InvestmentService:
                 asset_type_stats[asset_type]["count"] += 1
                 asset_type_stats[asset_type]["total_quantity"] += record.quantity
                 asset_type_stats[asset_type]["total_value"] += record.quantity * record.buy_price
-            
+
             # 총 투자 가치 (같은 세션 사용)
             total_value = await self.record_repo.get_total_investment_value(user_id, session=session)
-            
+
             # 손익 통계 (같은 세션 사용)
             realized_profit = sum(
                 (record.profit_loss or Decimal("0")) for record in realized_records
             )
             unrealized_profit = Decimal("0")  # 실제로는 현재가 조회 필요
-            
+
             profit_loss_stats = {
                 "realized_profit_loss": realized_profit,
                 "unrealized_profit_loss": unrealized_profit,
                 "total_profit_loss": realized_profit + unrealized_profit
             }
-            
+
             return {
                 "total_records": len(all_records),
                 "realized_count": len(realized_records),

@@ -1,11 +1,12 @@
 """
 에러 핸들링 미들웨어
 """
-from typing import Callable, Any
 import traceback
 from functools import wraps
-from src.exceptions import BUJAException
+from typing import Any, Callable
+
 from config.logging import get_logger
+from src.exceptions import BUJAException
 
 logger = get_logger(__name__)
 
@@ -45,7 +46,7 @@ def error_handler(func: Callable) -> Callable:
                 f"An unexpected error occurred: {str(e)}",
                 error_code="INTERNAL_ERROR"
             ) from e
-    
+
     @wraps(func)
     def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
@@ -71,7 +72,7 @@ def error_handler(func: Callable) -> Callable:
                 f"An unexpected error occurred: {str(e)}",
                 error_code="INTERNAL_ERROR"
             ) from e
-    
+
     # 비동기 함수인지 확인
     if hasattr(func, '__code__'):
         # 코루틴 함수인지 확인
@@ -115,6 +116,6 @@ def handle_streamlit_error(func: Callable) -> Callable:
             )
             st.error(f"❌ An unexpected error occurred: {str(e)}")
             return None
-    
+
     return wrapper
 

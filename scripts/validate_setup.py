@@ -27,49 +27,43 @@ def validate_imports():
     """모듈 import 검증"""
     print("\n📦 모듈 Import 검증:")
     errors = []
-    
+
     try:
-        from config import settings
         print("✅ config.settings")
     except Exception as e:
         print(f"❌ config.settings: {e}")
         errors.append("config.settings")
-    
+
     try:
-        from config import get_logger
         print("✅ config.logging")
     except Exception as e:
         print(f"❌ config.logging: {e}")
         errors.append("config.logging")
-    
+
     try:
-        from config.database import db
         print("✅ config.database")
     except Exception as e:
         print(f"❌ config.database: {e}")
         errors.append("config.database")
-    
+
     try:
-        from src.exceptions import BUJAException
         print("✅ src.exceptions")
     except Exception as e:
         print(f"❌ src.exceptions: {e}")
         errors.append("src.exceptions")
-    
+
     try:
-        from src.utils import hash_password, validate_email
         print("✅ src.utils")
     except Exception as e:
         print(f"❌ src.utils: {e}")
         errors.append("src.utils")
-    
+
     try:
-        from src.middleware import error_handler
         print("✅ src.middleware")
     except Exception as e:
         print(f"❌ src.middleware: {e}")
         errors.append("src.middleware")
-    
+
     return len(errors) == 0
 
 def main():
@@ -77,9 +71,9 @@ def main():
     print("=" * 60)
     print("BUJA 프로젝트 설정 검증")
     print("=" * 60)
-    
+
     all_checks_passed = True
-    
+
     # 1. 프로젝트 구조 검증
     print("\n📁 프로젝트 구조 검증:")
     checks = [
@@ -96,7 +90,7 @@ def main():
         (project_root / "docs", "docs/ 디렉토리"),
         (project_root / ".github" / "workflows", ".github/workflows/ 디렉토리"),
     ]
-    
+
     for path, desc in checks:
         if path.is_file():
             if not check_file_exists(path, desc):
@@ -104,7 +98,7 @@ def main():
         else:
             if not check_directory_exists(path, desc):
                 all_checks_passed = False
-    
+
     # 2. 설정 파일 검증
     print("\n⚙️  설정 파일 검증:")
     config_files = [
@@ -115,11 +109,11 @@ def main():
         (project_root / "config" / "database.py", "데이터베이스 설정"),
         (project_root / "config" / "logging.py", "로깅 설정"),
     ]
-    
+
     for path, desc in config_files:
         if not check_file_exists(path, desc):
             all_checks_passed = False
-    
+
     # 3. 소스 코드 검증
     print("\n💻 소스 코드 검증:")
     src_files = [
@@ -129,11 +123,11 @@ def main():
         (project_root / "src" / "utils" / "formatters.py", "포맷팅 유틸리티"),
         (project_root / "src" / "middleware" / "error_handler.py", "에러 핸들러"),
     ]
-    
+
     for path, desc in src_files:
         if not check_file_exists(path, desc):
             all_checks_passed = False
-    
+
     # 4. CI/CD 검증
     print("\n🔄 CI/CD 파이프라인 검증:")
     workflow_files = [
@@ -142,11 +136,11 @@ def main():
         (project_root / ".github" / "workflows" / "pr-check.yml", "PR 체크 워크플로우"),
         (project_root / ".github" / "pull_request_template.md", "PR 템플릿"),
     ]
-    
+
     for path, desc in workflow_files:
         if not check_file_exists(path, desc):
             all_checks_passed = False
-    
+
     # 5. 문서 검증
     print("\n📚 문서 검증:")
     doc_files = [
@@ -155,16 +149,16 @@ def main():
         (project_root / "docs" / "WBS.md", "작업 분해 구조"),
         (project_root / "docs" / "GIT_WORKFLOW.md", "Git 워크플로우"),
     ]
-    
+
     for path, desc in doc_files:
         if not check_file_exists(path, desc):
             all_checks_passed = False
-    
+
     # 6. 모듈 Import 검증
     import_passed = validate_imports()
     if not import_passed:
         all_checks_passed = False
-    
+
     # 7. 설정 값 검증
     print("\n🔧 설정 값 검증:")
     try:
@@ -176,7 +170,7 @@ def main():
     except Exception as e:
         print(f"❌ 설정 로드 실패: {e}")
         all_checks_passed = False
-    
+
     # 결과 출력
     print("\n" + "=" * 60)
     if all_checks_passed:

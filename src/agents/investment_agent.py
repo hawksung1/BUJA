@@ -1,12 +1,13 @@
 """
 투자 상담 Agent 구현 (Tool-based Agent)
 """
-from typing import Optional, Dict, Any, List, AsyncGenerator
-from src.agents.base_agent import BaseAgent
-from src.agents.tools import BaseTool, PortfolioAnalysisTool, RiskCalculatorTool, RecommendationTool
-from src.external.llm_client import LLMClient, get_llm_client
-from config.logging import get_logger
 import json
+from typing import Any, AsyncGenerator, Dict, List, Optional
+
+from config.logging import get_logger
+from src.agents.base_agent import BaseAgent
+from src.agents.tools import BaseTool, PortfolioAnalysisTool, RecommendationTool, RiskCalculatorTool
+from src.external.llm_client import LLMClient, get_llm_client
 
 logger = get_logger(__name__)
 
@@ -38,7 +39,7 @@ CRITICAL LANGUAGE RULE:
 
 class InvestmentAgent(BaseAgent):
     """투자 상담 Agent (Tool-based)"""
-    
+
     def __init__(
         self,
         llm_client: Optional[LLMClient] = None,
@@ -61,12 +62,12 @@ class InvestmentAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Failed to initialize LLM client: {e}")
             llm = None
-        
+
         super().__init__(
             llm_client=llm,
             system_prompt=system_prompt or INVESTMENT_AGENT_SYSTEM_PROMPT
         )
-        
+
         # Tools 등록
         self.tools: Dict[str, BaseTool] = {}
         if tools:
@@ -77,10 +78,10 @@ class InvestmentAgent(BaseAgent):
             self.register_tool(PortfolioAnalysisTool())
             self.register_tool(RiskCalculatorTool())
             self.register_tool(RecommendationTool())
-        
+
         # MCP Tools는 동적으로 로드 (사용자별)
         self.mcp_tools_loaded = False
-    
+
     def register_tool(self, tool: BaseTool) -> None:
         """
         Tool 등록
@@ -90,7 +91,7 @@ class InvestmentAgent(BaseAgent):
         """
         self.tools[tool.name] = tool
         logger.info(f"Tool registered: {tool.name}")
-    
+
     def remove_tool(self, tool_name: str) -> None:
         """
         Tool 제거
@@ -101,7 +102,7 @@ class InvestmentAgent(BaseAgent):
         if tool_name in self.tools:
             del self.tools[tool_name]
             logger.info(f"Tool removed: {tool_name}")
-    
+
     def load_mcp_tools(self, user_id: int) -> None:
         """
         사용자별 MCP Tools 로드
@@ -113,16 +114,16 @@ class InvestmentAgent(BaseAgent):
             from src.services.mcp_tool_service import MCPToolService
             mcp_service = MCPToolService()
             mcp_tools = mcp_service.load_user_tools(user_id)
-            
+
             for tool in mcp_tools:
                 self.register_tool(tool)
-            
+
             self.mcp_tools_loaded = True
             logger.info(f"Loaded {len(mcp_tools)} MCP tools for user {user_id}")
         except Exception as e:
             logger.warning(f"Failed to load MCP tools: {e}")
             self.mcp_tools_loaded = True  # 실패해도 플래그는 설정하여 재시도 방지
-    
+
     def get_tools_schema(self) -> List[Dict[str, Any]]:
         """
         Function Calling을 위한 Tool 스키마 목록 반환
@@ -131,7 +132,7 @@ class InvestmentAgent(BaseAgent):
             Tool 스키마 목록
         """
         return [tool.get_function_schema() for tool in self.tools.values()]
-    
+
     def _build_context_prompt(self, context: Optional[Dict[str, Any]] = None) -> str:
         """
         컨텍스트를 프롬프트로 변환 (상세한 사용자 정보 포함)
@@ -144,9 +145,9 @@ class InvestmentAgent(BaseAgent):
         """
         if not context:
             return ""
-        
+
         context_parts = []
-        
+
         # User Profile
         if "user_profile" in context:
             profile = context["user_profile"]
@@ -159,7 +160,7 @@ class InvestmentAgent(BaseAgent):
                 profile_info.append(f"Occupation: {profile.get('occupation')}")
             if profile_info:
                 context_parts.append(f"User Profile: {', '.join(profile_info)}")
-        
+
         # Financial Situation
         if "financial_situation" in context:
             financial = context["financial_situation"]
@@ -178,7 +179,7 @@ class InvestmentAgent(BaseAgent):
                 financial_info.append(f"Family Members: {financial.get('family_members')}")
             if financial_info:
                 context_parts.append(f"Financial Situation: {'; '.join(financial_info)}")
-        
+
         # Investment Preference
         if "investment_preference" in context:
             preference = context["investment_preference"]
@@ -197,7 +198,7 @@ class InvestmentAgent(BaseAgent):
                 pref_info.append(f"Preferred Asset Types: {', '.join(preference.get('preferred_asset_types', []))}")
             if pref_info:
                 context_parts.append(f"Investment Preference: {'; '.join(pref_info)}")
-        
+
         # Financial Goals
         if "financial_goals" in context:
             goals = context["financial_goals"]
@@ -207,16 +208,16 @@ class InvestmentAgent(BaseAgent):
                     goal_str = f"{goal.get('goal_type')}: {goal.get('target_amount'):,.0f} KRW by {goal.get('target_date')} (Priority: {goal.get('priority')}, Progress: {goal.get('current_progress'):,.0f} KRW)"
                     goals_info.append(goal_str)
                 context_parts.append(f"Financial Goals: {'; '.join(goals_info)}")
-        
+
         # Portfolio (if available)
         if "portfolio" in context:
             portfolio = context["portfolio"]
             context_parts.append(f"Current Portfolio: {portfolio}")
-        
+
         if context_parts:
             return "\n".join(context_parts)
         return ""
-    
+
     async def chat(self, message: str, context: Optional[Dict[str, Any]] = None) -> AsyncGenerator[str, None]:
         """
         사용자 메시지에 대한 응답 생성 (Tool-based Agent)
@@ -230,7 +231,7 @@ class InvestmentAgent(BaseAgent):
         """
         # 사용자 메시지 추가
         self.add_message("user", message)
-        
+
         # Build enhanced system prompt with user context
         enhanced_system_prompt = self.system_prompt
         if context:
@@ -255,23 +256,23 @@ CRITICAL LANGUAGE RULE:
 - Never mix languages - use the exact same language as the user's input.
 
 Please use the above user information to provide personalized investment advice right away in the user's language."""
-        
+
         # Tool 사용 안내 추가
         if self.tools:
             tool_descriptions = "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools.values()])
             enhanced_system_prompt += f"\n\n## Available Tools:\n{tool_descriptions}\n\nYou can use these tools to provide accurate and personalized investment advice. Use tools when you need to analyze portfolios, calculate risks, or generate recommendations."
-        
+
         # User message
         full_message = message
-        
+
         # MCP Tools 로드 (최초 1회만)
         if not self.mcp_tools_loaded and context and "user_id" in context:
             self.load_mcp_tools(context["user_id"])
-        
+
         try:
             # Get tools schema for function calling
             tools_schema = self.get_tools_schema() if self.tools else None
-            
+
             # LLM 호출 (Function Calling 지원)
             if hasattr(self, 'llm_provider'):
                 # llm_provider는 function calling을 지원하지 않을 수 있으므로 llm_client 사용
@@ -288,7 +289,7 @@ Please use the above user information to provide personalized investment advice 
                     tools=tools_schema,
                     tool_choice="auto" if tools_schema else None
                 )
-            
+
             # Function calling 응답 처리
             if isinstance(response, dict) and "tool_calls" in response:
                 # Tool 실행
@@ -296,14 +297,14 @@ Please use the above user information to provide personalized investment advice 
                 for tool_call in response["tool_calls"]:
                     tool_name = tool_call["function"]["name"]
                     tool_args = json.loads(tool_call["function"]["arguments"])
-                    
+
                     if tool_name in self.tools:
                         try:
                             # Context에서 user_id 추출하여 tool에 전달
                             if "user_id" not in tool_args and context:
                                 if "user_id" in context:
                                     tool_args["user_id"] = context["user_id"]
-                            
+
                             tool_result = await self.tools[tool_name].execute(**tool_args)
                             tool_results.append({
                                 "tool_call_id": tool_call["id"],
@@ -318,7 +319,7 @@ Please use the above user information to provide personalized investment advice 
                                 "tool_name": tool_name,
                                 "result": {"status": "error", "message": str(e)}
                             })
-                
+
                 # Tool 실행 결과를 LLM에 전달하여 최종 응답 생성
                 tool_messages = []
                 for tr in tool_results:
@@ -327,49 +328,49 @@ Please use the above user information to provide personalized investment advice 
                         "tool_call_id": tr["tool_call_id"],
                         "content": json.dumps(tr["result"], ensure_ascii=False)
                     })
-                
+
                 # 대화 기록에 tool 호출 및 결과 추가 (나중에 기록용)
                 # content가 None일 수 있으므로 빈 문자열로 변환
                 assistant_content = response.get("content") or ""
-                
+
                 # Tool 결과를 포함하여 최종 응답 요청
                 # get_conversation_context()를 호출하되, tool 메시지는 제외하고 새로 구성
                 base_messages = []
                 if self.system_prompt:
                     base_messages.append({"role": "system", "content": self.system_prompt})
-                
+
                 # tool 메시지를 제외한 대화 기록 가져오기
                 for msg in self.conversation_history:
                     if msg.role != "tool":  # tool 메시지는 제외
                         content = msg.content if msg.content is not None else ""
                         base_messages.append({"role": msg.role, "content": content})
-                
+
                 # tool_calls에 type 필드가 있는지 확인하고 없으면 추가
                 tool_calls_with_type = []
                 for tc in response["tool_calls"]:
                     if "type" not in tc:
                         tc["type"] = "function"
                     tool_calls_with_type.append(tc)
-                
+
                 # content가 None이면 빈 문자열로 변환 (OpenAI API는 null content를 허용하지 않음)
                 assistant_content_for_api = response.get("content") or ""
-                
+
                 # 사용자 메시지 언어 감지하여 동일한 언어로 응답 요청
                 user_language = "Korean" if any(ord(char) > 127 for char in message) else "English"
                 final_user_prompt = "도구 결과를 바탕으로 포괄적인 응답을 한국어로 제공해주세요." if user_language == "Korean" else "Please provide a comprehensive response based on the tool results."
-                
+
                 # 최종 메시지 구성: assistant (tool_calls 포함) -> tool messages -> user
                 final_messages = base_messages + [
                     {"role": "assistant", "content": assistant_content_for_api, "tool_calls": tool_calls_with_type},
                     *tool_messages,
                     {"role": "user", "content": final_user_prompt}
                 ]
-                
+
                 # 대화 기록에 추가 (나중에 기록용)
                 self.add_message("assistant", assistant_content)
                 for tm in tool_messages:
                     self.add_message("tool", tm["content"])
-                
+
                 # 최종 응답 생성 (스트리밍)
                 # 스트리밍을 위해 AsyncGenerator로 반환
                 async def _generate_final_response_stream():
@@ -392,13 +393,13 @@ Please use the above user information to provide personalized investment advice 
                             max_tokens=2000
                         ):
                             yield chunk
-                
+
                 # 스트리밍 응답 수집
                 full_response = ""
                 async for chunk in _generate_final_response_stream():
                     full_response += chunk
                     yield chunk
-                
+
                 self.add_message("assistant", full_response)
                 return
             else:
@@ -410,21 +411,21 @@ Please use the above user information to provide personalized investment advice 
                         max_tokens=2000
                     ):
                         yield chunk
-                
+
                 full_response = ""
                 async for chunk in _generate_text_response_stream():
                     full_response += chunk
                     yield chunk
-                
+
                 self.add_message("assistant", full_response)
                 return
-        
+
         except Exception as e:
             logger.error(f"Investment agent error: {e}", exc_info=True)
             # 에러 상세 정보 로깅
             error_type = type(e).__name__
             error_str = str(e)
-            
+
             # 사용자 친화적인 에러 메시지 생성
             if "LLMProviderNotFoundError" in error_type or "provider" in error_str.lower() or "not set" in error_str.lower():
                 error_message = """LLM API 키가 설정되지 않았습니다. 
@@ -454,11 +455,11 @@ API 키는 다음에서 발급받을 수 있습니다:
                     error_message = f"오류가 발생했습니다: {error_type}: {error_str}"
                 else:
                     error_message = "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
-            
+
             self.add_message("assistant", error_message)
             yield error_message
             return
-    
+
     async def analyze_image(
         self,
         image_path: Optional[str] = None,
@@ -485,7 +486,7 @@ API 키는 다음에서 발급받을 수 있습니다:
                     image_bytes = f.read()
             else:
                 raise ValueError("Either image_path or image_data is required.")
-            
+
             # LLM Vision API 호출
             if hasattr(self, 'llm_provider'):
                 analysis_text = await self.llm_provider.analyze_image(
@@ -497,17 +498,17 @@ API 키는 다음에서 발급받을 수 있습니다:
                     image_data=image_bytes,
                     prompt=prompt
                 )
-            
+
             logger.info("Portfolio screenshot analyzed", extra={
                 "image_size": len(image_bytes),
                 "analysis_length": len(analysis_text)
             })
-            
+
             return {
                 "analysis": analysis_text,
                 "status": "success"
             }
-        
+
         except Exception as e:
             logger.error(f"Screenshot analysis error: {e}")
             return {

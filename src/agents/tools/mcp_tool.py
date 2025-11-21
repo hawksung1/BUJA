@@ -1,18 +1,19 @@
 """
 MCP (Model Context Protocol) Tool
 """
-from typing import Dict, Any, Optional
-from src.agents.tools.base_tool import BaseTool
-from config.logging import get_logger
+from typing import Any, Dict, Optional
+
 import httpx
-import json
+
+from config.logging import get_logger
+from src.agents.tools.base_tool import BaseTool
 
 logger = get_logger(__name__)
 
 
 class MCPTool(BaseTool):
     """MCP Tool 구현"""
-    
+
     def __init__(
         self,
         name: str,
@@ -38,11 +39,11 @@ class MCPTool(BaseTool):
         self.mcp_endpoint = mcp_endpoint.lstrip('/')
         self.parameters_schema = parameters_schema
         self.api_key = api_key
-    
+
     def get_parameters_schema(self) -> Dict[str, Any]:
         """파라미터 스키마 반환"""
         return self.parameters_schema
-    
+
     async def execute(self, **kwargs) -> Dict[str, Any]:
         """
         MCP Tool 실행
@@ -55,14 +56,14 @@ class MCPTool(BaseTool):
         """
         try:
             url = f"{self.mcp_server_url}/{self.mcp_endpoint}"
-            
+
             headers = {
                 "Content-Type": "application/json"
             }
-            
+
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
-            
+
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     url,
@@ -71,13 +72,13 @@ class MCPTool(BaseTool):
                 )
                 response.raise_for_status()
                 result = response.json()
-                
+
                 logger.info(f"MCP Tool {self.name} executed successfully")
                 return {
                     "status": "success",
                     "data": result
                 }
-                
+
         except httpx.HTTPError as e:
             logger.error(f"MCP Tool {self.name} HTTP error: {e}")
             return {
@@ -92,7 +93,7 @@ class MCPTool(BaseTool):
                 "message": str(e),
                 "data": None
             }
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Tool을 딕셔너리로 변환 (저장용)"""
         return {
@@ -103,7 +104,7 @@ class MCPTool(BaseTool):
             "parameters_schema": self.parameters_schema,
             "api_key": self.api_key  # 보안상 실제 저장 시 암호화 필요
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "MCPTool":
         """딕셔너리에서 Tool 생성"""

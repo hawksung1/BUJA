@@ -1,31 +1,31 @@
 """
 포트폴리오 관리 서비스
 """
-from typing import Dict, Any, Optional, List
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
+from typing import Any, Dict, Optional
+
 from config.database import Database, db
-from src.repositories import (
-    PortfolioAnalysisRepository,
-    InvestmentRecordRepository,
-)
-from src.models import PortfolioAnalysis
+from config.logging import get_logger
 from src.analyzers import (
-    PortfolioAnalyzer,
     PerformanceAnalyzer,
+    PortfolioAnalyzer,
     RiskAnalyzer,
 )
-from src.services.user_service import UserService
+from src.models import PortfolioAnalysis
+from src.repositories import (
+    InvestmentRecordRepository,
+    PortfolioAnalysisRepository,
+)
 from src.services.investment_service import InvestmentService
-from src.exceptions import UserNotFoundError, ValidationError
-from config.logging import get_logger
+from src.services.user_service import UserService
 
 logger = get_logger(__name__)
 
 
 class PortfolioService:
     """포트폴리오 관리 서비스"""
-    
+
     def __init__(self, database: Optional[Database] = None):
         """
         PortfolioService 초기화
@@ -41,7 +41,7 @@ class PortfolioService:
         self.risk_analyzer = RiskAnalyzer()
         self.user_service = UserService(self.db)
         self.investment_service = InvestmentService(self.db)
-    
+
     async def analyze_portfolio(
         self,
         user_id: int,
@@ -59,42 +59,42 @@ class PortfolioService:
         """
         # 사용자 존재 확인
         await self.user_service.get_user(user_id)
-        
+
         # 투자 기록 조회
         records = await self.record_repo.get_unrealized(user_id)
-        
+
         # 딕셔너리로 변환 (공통 유틸리티 사용)
         from src.utils.converters import investment_records_to_dict
         records_dict = investment_records_to_dict(records, include_dates=True)
-        
+
         # 포트폴리오 분석
         portfolio_analysis = self.portfolio_analyzer.analyze_portfolio(
             records_dict,
             current_prices
         )
-        
+
         # 성과 분석
         performance_analysis = self.performance_analyzer.calculate_total_return(
             records_dict,
             current_prices
         )
-        
+
         # 리스크 분석 (수익률 이력이 없으면 기본값)
         risk_analysis = self.risk_analyzer.assess_risk(records_dict)
-        
+
         result = {
             "portfolio": portfolio_analysis,
             "performance": performance_analysis,
             "risk": risk_analysis,
             "user_id": user_id
         }
-        
+
         # 분석 결과 저장
         await self._save_analysis(user_id, result)
-        
+
         logger.info(f"Portfolio analyzed: user_id={user_id}")
         return result
-    
+
     async def _save_analysis(
         self,
         user_id: int,
@@ -129,7 +129,7 @@ class PortfolioService:
             await session.commit()
             await session.refresh(analysis)
             return analysis
-    
+
     async def get_current_allocation(
         self,
         user_id: int
@@ -144,13 +144,13 @@ class PortfolioService:
             자산 배분 비율 딕셔너리
         """
         records = await self.record_repo.get_unrealized(user_id)
-        
+
         # 딕셔너리로 변환 (공통 유틸리티 사용)
         from src.utils.converters import investment_records_to_dict
         records_dict = investment_records_to_dict(records, include_dates=False)
-        
+
         return self.portfolio_analyzer.calculate_allocation(records_dict)
-    
+
     async def calculate_performance(
         self,
         user_id: int,
@@ -167,21 +167,21 @@ class PortfolioService:
             성과 지표 딕셔너리
         """
         records = await self.record_repo.get_unrealized(user_id)
-        
+
         # 딕셔너리로 변환 (공통 유틸리티 사용)
         from src.utils.converters import investment_records_to_dict
         records_dict = investment_records_to_dict(records, include_dates=True, include_sell_price=True)
-        
+
         performance = self.performance_analyzer.calculate_total_return(records_dict)
         annualized = self.performance_analyzer.calculate_annualized_return(records_dict)
-        
+
         return {
             "total_return": float(performance["total_return_percentage"]),
             "annualized_return": float(annualized),
             "total_profit_loss": float(performance["total_profit_loss"]),
             "realized_profit": float(performance["realized_profit"])
         }
-    
+
     async def get_rebalancing_suggestion(
         self,
         user_id: int
@@ -197,16 +197,16 @@ class PortfolioService:
         """
         # 현재 배분
         current_allocation = await self.get_current_allocation(user_id)
-        
+
         # 목표 배분 (투자 성향 기반, 추후 구현)
         # 여기서는 간단히 현재 배분을 기준으로 제안
-        
+
         return {
             "current_allocation": current_allocation,
             "target_allocation": current_allocation,  # TODO: 투자 성향 기반 계산
             "suggestions": []
         }
-    
+
     async def get_portfolio_summary(
         self,
         user_id: int
@@ -223,21 +223,21 @@ class PortfolioService:
         try:
             # Get investment records
             records = await self.record_repo.get_unrealized(user_id)
-            
+
             if not records:
                 return {
                     "total_value": 0,
                     "total_return": 0,
                     "asset_count": 0
                 }
-            
+
             # Calculate total value and return (공통 유틸리티 사용)
             from src.utils.converters import investment_records_to_dict
             records_dict = investment_records_to_dict(records, include_dates=False)
-            
+
             portfolio_analysis = self.portfolio_analyzer.analyze_portfolio(records_dict)
             performance = self.performance_analyzer.calculate_total_return(records_dict)
-            
+
             return {
                 "total_value": float(portfolio_analysis.get("total_value", 0)),
                 "total_return": float(performance.get("total_return_percentage", 0)),

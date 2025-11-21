@@ -1,9 +1,11 @@
 """
 Chat Message Repository 구현
 """
-from typing import Optional, List
+from typing import List, Optional
+
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+
 from config.database import Database
 from src.models.chat import ChatMessage
 from src.repositories.base_repository import BaseRepository
@@ -11,10 +13,10 @@ from src.repositories.base_repository import BaseRepository
 
 class ChatMessageRepository(BaseRepository):
     """Chat Message Repository"""
-    
+
     def __init__(self, db: Database):
         super().__init__(db, ChatMessage)
-    
+
     async def get_by_user_id(
         self,
         user_id: int,
@@ -26,16 +28,16 @@ class ChatMessageRepository(BaseRepository):
         query = select(ChatMessage).where(
             ChatMessage.user_id == user_id
         )
-        
+
         # 프로젝트 필터링
         if project_id is not None:
             query = query.where(ChatMessage.project_id == project_id)
-        
+
         query = query.order_by(desc(ChatMessage.created_at))
-        
+
         if limit:
             query = query.limit(limit)
-        
+
         if session:
             result = await session.execute(query)
             return list(result.scalars().all())
@@ -43,7 +45,7 @@ class ChatMessageRepository(BaseRepository):
             async with self.db.session() as session:
                 result = await session.execute(query)
                 return list(result.scalars().all())
-    
+
     async def create_message(
         self,
         user_id: int,
@@ -57,7 +59,7 @@ class ChatMessageRepository(BaseRepository):
         """채팅 메시지 생성"""
         from config.logging import get_logger
         logger = get_logger(__name__)
-        
+
         message = ChatMessage(
             user_id=user_id,
             role=role,
@@ -66,7 +68,7 @@ class ChatMessageRepository(BaseRepository):
             image_caption=image_caption,
             project_id=project_id
         )
-        
+
         if session:
             session.add(message)
             await session.flush()
@@ -80,7 +82,7 @@ class ChatMessageRepository(BaseRepository):
                 await session.refresh(message)
                 logger.info(f"Chat message created (new session): id={message.id}, user_id={user_id}, role={role}, content_length={len(content)}")
                 return message
-    
+
     async def delete_by_user_id(
         self,
         user_id: int,
@@ -88,7 +90,7 @@ class ChatMessageRepository(BaseRepository):
     ) -> int:
         """사용자의 모든 채팅 메시지 삭제"""
         query = select(ChatMessage).where(ChatMessage.user_id == user_id)
-        
+
         if session:
             result = await session.execute(query)
             messages = list(result.scalars().all())

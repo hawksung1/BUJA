@@ -1,13 +1,14 @@
 """
 MCP Tools 관리 페이지
 """
+import json
+
 import streamlit as st
+
+from config.logging import get_logger
+from src.agents.tools.mcp_tool import MCPTool
 from src.middleware import auth_middleware
 from src.services.mcp_tool_service import MCPToolService
-from src.agents.tools.mcp_tool import MCPTool
-from src.exceptions import ValidationError
-from config.logging import get_logger
-import json
 
 logger = get_logger(__name__)
 
@@ -28,6 +29,7 @@ mcp_tool_service = MCPToolService()
 
 # 공통 사이드바 렌더링
 from src.utils.sidebar import render_sidebar
+
 render_sidebar()
 
 st.title("🔧 MCP Tools 관리")
@@ -44,13 +46,13 @@ if user_tools:
     for tool in user_tools:
         with st.expander(f"🔧 {tool.name} - {tool.description}"):
             col1, col2 = st.columns([3, 1])
-            
+
             with col1:
                 st.write(f"**서버 URL:** {tool.mcp_server_url}")
                 st.write(f"**엔드포인트:** {tool.mcp_endpoint}")
                 if tool.api_key:
                     st.write(f"**API 키:** {'*' * 20} (설정됨)")
-            
+
             with col2:
                 if st.button("삭제", key=f"delete_{tool.name}", use_container_width=True):
                     try:
@@ -70,18 +72,18 @@ st.subheader("새 MCP Tool 추가")
 with st.form("add_mcp_tool_form"):
     tool_name = st.text_input("Tool 이름 *", placeholder="예: stock_price_lookup")
     tool_description = st.text_area("Tool 설명 *", placeholder="예: 주식 가격을 조회합니다.")
-    
+
     col1, col2 = st.columns(2)
     with col1:
         mcp_server_url = st.text_input("MCP 서버 URL *", placeholder="https://api.example.com")
     with col2:
         mcp_endpoint = st.text_input("엔드포인트 경로 *", placeholder="tools/stock-price")
-    
+
     api_key = st.text_input("API 키 (선택사항)", type="password", help="필요한 경우 API 키를 입력하세요.")
-    
+
     st.markdown("**파라미터 스키마 (JSON Schema)**")
     st.caption("Tool 실행에 필요한 파라미터를 정의합니다. JSON Schema 형식으로 입력하세요.")
-    
+
     # 기본 파라미터 스키마 예시
     default_schema = {
         "type": "object",
@@ -93,16 +95,16 @@ with st.form("add_mcp_tool_form"):
         },
         "required": ["symbol"]
     }
-    
+
     parameters_schema_json = st.text_area(
         "파라미터 스키마 (JSON)",
         value=json.dumps(default_schema, indent=2, ensure_ascii=False),
         height=200,
         help="JSON Schema 형식으로 파라미터를 정의하세요."
     )
-    
+
     submit_button = st.form_submit_button("Tool 추가", use_container_width=True)
-    
+
     if submit_button:
         if not tool_name or not tool_description or not mcp_server_url or not mcp_endpoint:
             st.error("필수 항목을 모두 입력해주세요.")
@@ -110,7 +112,7 @@ with st.form("add_mcp_tool_form"):
             try:
                 # JSON 스키마 파싱
                 parameters_schema = json.loads(parameters_schema_json)
-                
+
                 # MCPTool 생성
                 new_tool = MCPTool(
                     name=tool_name,
@@ -120,13 +122,13 @@ with st.form("add_mcp_tool_form"):
                     parameters_schema=parameters_schema,
                     api_key=api_key if api_key else None
                 )
-                
+
                 # Tool 추가
                 mcp_tool_service.add_user_tool(user.id, new_tool)
                 st.success(f"Tool '{tool_name}'이(가) 추가되었습니다!")
                 st.info("Agent Chat에서 이 Tool을 사용할 수 있습니다.")
                 st.rerun()
-                
+
             except json.JSONDecodeError as e:
                 st.error(f"JSON 스키마 형식 오류: {str(e)}")
             except ValueError as e:
