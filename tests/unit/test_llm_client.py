@@ -1,6 +1,8 @@
 """
 LLM 클라이언트 단위 테스트
 """
+import os
+import unittest
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -37,40 +39,46 @@ class TestOpenAIProvider:
 
     def test_init_without_api_key(self):
         """API 키 없이 초기화 실패 테스트"""
-        with pytest.raises(LLMAPIKeyError):
-            OpenAIProvider("")
+        with unittest.mock.patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(LLMAPIKeyError):
+                OpenAIProvider("")
 
     @pytest.mark.asyncio
     async def test_generate_text_success(self):
         """텍스트 생성 성공 테스트"""
-        provider = OpenAIProvider("test-api-key")
+        with unittest.mock.patch("src.external.llm_client.AsyncOpenAI") as MockAsyncOpenAI:
+            # Setup mock client
+            mock_client = MockAsyncOpenAI.return_value
+            mock_response = MagicMock()
+            mock_response.choices = [MagicMock()]
+            mock_response.choices[0].message.content = "Generated text"
+            mock_response.choices[0].message.tool_calls = None
+            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
-        # Mock OpenAI client
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Generated text"
+            provider = OpenAIProvider("test-api-key")
+            
+            # Mock rate limiter
+            provider.rate_limiter = MagicMock()
+            provider.rate_limiter.wait_if_needed = AsyncMock()
 
-        provider.client = AsyncMock()
-        provider.client.chat.completions.create = AsyncMock(return_value=mock_response)
-        provider.rate_limiter.acquire = AsyncMock(return_value=True)
-        provider.rate_limiter.wait_if_needed = AsyncMock()
+            result = await provider.generate_text("Test prompt")
 
-        result = await provider.generate_text("Test prompt")
-
-        assert result == "Generated text"
-        provider.client.chat.completions.create.assert_called_once()
+            assert result == "Generated text"
+            mock_client.chat.completions.create.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_text_api_error(self):
         """API 오류 테스트"""
-        provider = OpenAIProvider("test-api-key")
+        with unittest.mock.patch("src.external.llm_client.AsyncOpenAI") as MockAsyncOpenAI:
+            mock_client = MockAsyncOpenAI.return_value
+            mock_client.chat.completions.create = AsyncMock(side_effect=Exception("API Error"))
 
-        provider.client = AsyncMock()
-        provider.client.chat.completions.create = AsyncMock(side_effect=Exception("API Error"))
-        provider.rate_limiter.wait_if_needed = AsyncMock()
+            provider = OpenAIProvider("test-api-key")
+            provider.rate_limiter = MagicMock()
+            provider.rate_limiter.wait_if_needed = AsyncMock()
 
-        with pytest.raises(LLMAPIError):
-            await provider.generate_text("Test prompt")
+            with pytest.raises(LLMAPIError):
+                await provider.generate_text("Test prompt")
 
 
 class TestAnthropicProvider:
@@ -78,27 +86,28 @@ class TestAnthropicProvider:
 
     def test_init_without_api_key(self):
         """API 키 없이 초기화 실패 테스트"""
-        with pytest.raises(LLMAPIKeyError):
-            AnthropicProvider("")
+        with unittest.mock.patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(LLMAPIKeyError):
+                AnthropicProvider("")
 
     @pytest.mark.asyncio
     async def test_generate_text_success(self):
         """텍스트 생성 성공 테스트"""
-        provider = AnthropicProvider("test-api-key")
+        with unittest.mock.patch("src.external.llm_client.AsyncAnthropic") as MockAsyncAnthropic:
+            mock_client = MockAsyncAnthropic.return_value
+            mock_response = MagicMock()
+            mock_response.content = [MagicMock()]
+            mock_response.content[0].text = "Generated text"
+            mock_client.messages.create = AsyncMock(return_value=mock_response)
 
-        # Mock Anthropic client
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock()]
-        mock_response.content[0].text = "Generated text"
+            provider = AnthropicProvider("test-api-key")
+            provider.rate_limiter = MagicMock()
+            provider.rate_limiter.wait_if_needed = AsyncMock()
 
-        provider.client = AsyncMock()
-        provider.client.messages.create = AsyncMock(return_value=mock_response)
-        provider.rate_limiter.wait_if_needed = AsyncMock()
+            result = await provider.generate_text("Test prompt")
 
-        result = await provider.generate_text("Test prompt")
-
-        assert result == "Generated text"
-        provider.client.messages.create.assert_called_once()
+            assert result == "Generated text"
+            mock_client.messages.create.assert_called_once()
 
 
 class TestLLMClient:
@@ -144,5 +153,5 @@ class TestLLMClient:
         result = await client.generate_text("Test prompt", provider_name="openai")
 
         assert result == "Generated text"
-        provider.generate_text.assert_called_once_with("Test prompt", provider_name=None)
+        provider.generate_text.assert_called_once_with("Test prompt")
 

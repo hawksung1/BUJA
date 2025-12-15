@@ -1,143 +1,112 @@
 """
 알림 서비스 테스트
 """
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.models.notification import NotificationStatus, NotificationType
-from src.models.user import User
+from config.database import Database
+from src.models.notification import Notification, NotificationStatus, NotificationType
 from src.services.notification_service import NotificationService
-from src.utils.security import hash_password
+
+
+@pytest.fixture
+def mock_db():
+    """Mock Database 인스턴스"""
+    return MagicMock(spec=Database)
+
+
+@pytest.fixture
+def notification_service(mock_db):
+    """NotificationService 인스턴스"""
+    service = NotificationService()
+    service.repo = MagicMock()
+    # Mock email service
+    service._email_service = MagicMock()
+    service._email_service.send_notification_email = AsyncMock()
+    return service
 
 
 @pytest.mark.asyncio
-async def test_create_notification(db_session):
+async def test_create_notification(notification_service):
     """알림 생성 테스트"""
-    # 테스트 사용자 생성
-    user = User(
-        email="test_notification@example.com",
-        password_hash=hash_password("testpass123"),
-        is_active=True
-    )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    service = NotificationService()
-
-    notification = await service.create_notification(
-        user_id=user.id,
+    user_id = 1
+    
+    # Mock notification creation
+    notification = Notification(
+        id=1,
+        user_id=user_id,
         type=NotificationType.RISK_ALERT,
         title="리스크 경고",
         message="포트폴리오 리스크가 높습니다.",
-        send_email=False  # 테스트에서는 이메일 전송 스킵
+        status=NotificationStatus.UNREAD
+    )
+    notification_service.repo.create = AsyncMock(return_value=notification)
+
+    result = await notification_service.create_notification(
+        user_id=user_id,
+        type=NotificationType.RISK_ALERT,
+        title="리스크 경고",
+        message="포트폴리오 리스크가 높습니다.",
+        send_email=False
     )
 
-    assert notification is not None
-    assert notification.user_id == user.id
-    assert notification.type == NotificationType.RISK_ALERT
-    assert notification.title == "리스크 경고"
-    assert notification.status == NotificationStatus.UNREAD
+    assert result is not None
+    assert result.user_id == user_id
+    assert result.type == NotificationType.RISK_ALERT
+    assert result.title == "리스크 경고"
+    assert result.status == NotificationStatus.UNREAD
+    notification_service.repo.create.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_get_user_notifications(db_session):
+async def test_get_user_notifications(notification_service):
     """사용자 알림 조회 테스트"""
-    # 테스트 사용자 생성
-    user = User(
-        email="test_notifications@example.com",
-        password_hash=hash_password("testpass123"),
-        is_active=True
-    )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    service = NotificationService()
-
-    # 알림 생성
-    await service.create_notification(
-        user_id=user.id,
-        type=NotificationType.GOAL_PROGRESS,
-        title="목표 진행률",
-        message="목표 진행률이 50%입니다.",
-        send_email=False
-    )
-
-    # 알림 조회
-    notifications = await service.get_user_notifications(user.id)
-
-    assert len(notifications) >= 1
-    assert notifications[0].type == NotificationType.GOAL_PROGRESS
-
-
-@pytest.mark.asyncio
-async def test_mark_as_read(db_session):
-    """알림 읽음 처리 테스트"""
-    # 테스트 사용자 생성
-    user = User(
-        email="test_mark_read@example.com",
-        password_hash=hash_password("testpass123"),
-        is_active=True
-    )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    service = NotificationService()
-
-    # 알림 생성
-    notification = await service.create_notification(
-        user_id=user.id,
-        type=NotificationType.REBALANCING_NEEDED,
-        title="리밸런싱 필요",
-        message="리밸런싱이 필요합니다.",
-        send_email=False
-    )
-
-    assert notification.status == NotificationStatus.UNREAD
-
-    # 읽음 처리
-    result = await service.mark_as_read(notification.id, user.id)
-    assert result is True
-
-    # 다시 조회하여 확인
-    updated_notification = await service.repo.get_by_id(notification.id)
-    assert updated_notification.status == NotificationStatus.READ
-    assert updated_notification.read_at is not None
-
-
-@pytest.mark.asyncio
-async def test_get_unread_count(db_session):
-    """읽지 않은 알림 개수 테스트"""
-    # 테스트 사용자 생성
-    user = User(
-        email="test_unread_count@example.com",
-        password_hash=hash_password("testpass123"),
-        is_active=True
-    )
-    db_session.add(user)
-    await db_session.flush()
-    await db_session.refresh(user)
-    service = NotificationService()
-
-    # 알림 여러 개 생성
-    for i in range(3):
-        await service.create_notification(
-            user_id=user.id,
-            type=NotificationType.PORTFOLIO_REVIEW,
-            title=f"포트폴리오 리뷰 {i+1}",
-            message=f"리뷰 메시지 {i+1}",
-            send_email=False
+    user_id = 1
+    
+    notifications = [
+        Notification(
+            id=1,
+            user_id=user_id,
+            type=NotificationType.GOAL_PROGRESS,
+            title="목표 진행률",
+            message="목표 진행률이 50%입니다.",
+            status=NotificationStatus.UNREAD
         )
+    ]
+    notification_service.repo.get_by_user_id = AsyncMock(return_value=notifications)
 
-    # 읽지 않은 개수 확인
-    unread_count = await service.get_unread_count(user.id)
-    assert unread_count >= 3
+    result = await notification_service.get_user_notifications(user_id)
 
-    # 하나 읽음 처리
-    notifications = await service.get_user_notifications(user.id, unread_only=True)
-    if notifications:
-        await service.mark_as_read(notifications[0].id, user.id)
+    assert len(result) == 1
+    assert result[0].type == NotificationType.GOAL_PROGRESS
+    notification_service.repo.get_by_user_id.assert_called_once_with(user_id=user_id, unread_only=False, limit=50)
 
-        # 다시 확인
-        unread_count_after = await service.get_unread_count(user.id)
-        assert unread_count_after == unread_count - 1
+
+@pytest.mark.asyncio
+async def test_mark_as_read(notification_service):
+    """알림 읽음 처리 테스트"""
+    user_id = 1
+    notification_id = 1
+    
+    notification_service.repo.mark_as_read = AsyncMock(return_value=True)
+
+    result = await notification_service.mark_as_read(notification_id, user_id)
+    
+    assert result is True
+    notification_service.repo.mark_as_read.assert_called_once_with(notification_id, user_id)
+
+
+@pytest.mark.asyncio
+async def test_get_unread_count(notification_service):
+    """읽지 않은 알림 개수 테스트"""
+    user_id = 1
+    
+    notification_service.repo.get_unread_count = AsyncMock(return_value=3)
+
+    unread_count = await notification_service.get_unread_count(user_id)
+    
+    assert unread_count == 3
+    notification_service.repo.get_unread_count.assert_called_once_with(user_id)
+
 

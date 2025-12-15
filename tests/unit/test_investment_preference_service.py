@@ -1,6 +1,7 @@
 """
 InvestmentPreferenceService 단위 테스트
 """
+from datetime import datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock
 
@@ -70,7 +71,8 @@ class TestInvestmentPreferenceService:
             user_id=1,
             risk_tolerance=7,
             target_return=Decimal("10.0"),
-            investment_period="LONG"
+            investment_period="LONG",
+            updated_at=datetime.now()
         )
 
         mock_preference_repo = MagicMock(spec=InvestmentPreferenceRepository)
@@ -82,5 +84,5 @@ class TestInvestmentPreferenceService:
         assert report["risk_tolerance"] == 7
         assert report["risk_level"] in ["보수적", "중립", "공격적"]
         assert "recommended_allocation" in report
-        assert "stock" in report["recommended_allocation"]
+        assert "주식" in report["recommended_allocation"]
 

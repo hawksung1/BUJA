@@ -30,11 +30,11 @@ class TestChatServiceGetMessages:
         """메시지 조회 성공 테스트"""
         messages = [
             ChatMessage(
-                id=1, user_id=1, role="user", content="Hello",
+                id=2, user_id=1, role="assistant", content="Hi there",
                 project_id=None
             ),
             ChatMessage(
-                id=2, user_id=1, role="assistant", content="Hi there",
+                id=1, user_id=1, role="user", content="Hello",
                 project_id=None
             )
         ]

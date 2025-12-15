@@ -1,6 +1,7 @@
 """
 ChatProjectService 단위 테스트
 """
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -28,9 +29,10 @@ class TestChatProjectServiceGetProjects:
     @pytest.mark.asyncio
     async def test_get_projects_success(self, chat_project_service):
         """프로젝트 목록 조회 성공 테스트"""
+        now = datetime.now()
         projects = [
-            ChatProject(id=1, user_id=1, name="Project 1", description="First project"),
-            ChatProject(id=2, user_id=1, name="Project 2", description="Second project")
+            ChatProject(id=1, user_id=1, name="Project 1", description="First project", created_at=now, updated_at=now),
+            ChatProject(id=2, user_id=1, name="Project 2", description="Second project", created_at=now, updated_at=now)
         ]
 
         mock_project_repo = MagicMock()
@@ -62,9 +64,11 @@ class TestChatProjectServiceGetProject:
     @pytest.mark.asyncio
     async def test_get_project_success(self, chat_project_service):
         """프로젝트 조회 성공 테스트"""
+        now = datetime.now()
         project = ChatProject(
             id=1, user_id=1, name="Test Project",
-            description="Test description", icon="📊"
+            description="Test description", icon="📊",
+            created_at=now, updated_at=now
         )
 
         mock_project_repo = MagicMock()
@@ -97,9 +101,11 @@ class TestChatProjectServiceCreateProject:
     @pytest.mark.asyncio
     async def test_create_project_success(self, chat_project_service):
         """프로젝트 생성 성공 테스트"""
+        now = datetime.now()
         project = ChatProject(
             id=1, user_id=1, name="New Project",
-            description="New project description"
+            description="New project description",
+            created_at=now, updated_at=now
         )
 
         mock_project_repo = MagicMock()
@@ -125,9 +131,11 @@ class TestChatProjectServiceCreateProject:
     @pytest.mark.asyncio
     async def test_create_project_with_icon(self, chat_project_service):
         """아이콘이 포함된 프로젝트 생성 테스트"""
+        now = datetime.now()
         project = ChatProject(
             id=1, user_id=1, name="Project with Icon",
-            icon="📈"
+            icon="📈",
+            created_at=now, updated_at=now
         )
 
         mock_project_repo = MagicMock()
@@ -151,9 +159,11 @@ class TestChatProjectServiceUpdateProject:
     @pytest.mark.asyncio
     async def test_update_project_success(self, chat_project_service):
         """프로젝트 업데이트 성공 테스트"""
+        now = datetime.now()
         project = ChatProject(
             id=1, user_id=1, name="Updated Project",
-            description="Updated description"
+            description="Updated description",
+            created_at=now, updated_at=now
         )
 
         mock_project_repo = MagicMock()
@@ -182,9 +192,11 @@ class TestChatProjectServiceUpdateProject:
     @pytest.mark.asyncio
     async def test_update_project_partial(self, chat_project_service):
         """부분 업데이트 테스트"""
+        now = datetime.now()
         project = ChatProject(
             id=1, user_id=1, name="Original Name",
-            description="Updated description"
+            description="Updated description",
+            created_at=now, updated_at=now
         )
 
         mock_project_repo = MagicMock()

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BUJA - 지능형 투자 포트폴리오 관리</title>
+    <style>
+        :root {
+            --primary: #00D4FF;
+            --secondary: #7A7ADB;
+            --bg: #0F1117;
+            --text: #E0E0E0;
+            --card-bg: #1E212B;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        header {
+            padding: 2rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(15, 17, 23, 0.8);
+            backdrop-filter: blur(10px);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 1rem;
+            background: radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.1) 0%, transparent 50%);
+        }
+
+        h1 {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.1;
+        }
+
+        .gradient-text {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: #A0A0A0;
+            max-width: 600px;
+            margin-bottom: 2.5rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: #000;
+            border: none;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid var(--secondary);
+            color: var(--text);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 212, 255, 0.2);
+        }
+
+        .features {
+            padding: 5rem 10%;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        footer {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">BUJA</div>
+        <nav>
+            <a href="https://github.com/hawksung1/BUJA" class="btn btn-secondary" style="padding: 0.5rem 1.5rem; font-size: 0.9rem;">GitHub</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <h1>당신의 투자를 위한<br><span class="gradient-text">지능형 파트너</span></h1>
+        <p class="subtitle">
+            BUJA는 Streamlit 기반의 강력한 투자 포트폴리오 관리 솔루션입니다.<br>
+            데이터 기반의 분석과 AI 인사이트로 더 나은 투자 결정을 내리세요.
+        </p>
+        <div class="cta-buttons">
+            <a href="https://github.com/hawksung1/BUJA" class="btn btn-primary">프로젝트 보러가기</a>
+            <a href="#features" class="btn btn-secondary">기능 살펴보기</a>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>포트폴리오 분석</h3>
+            <p>보유 자산의 현황을 한눈에 파악하고, 다각도로 분석된 리포트를 받아보세요.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3>AI 어드바이저</h3>
+            <p>LLM 기반의 AI가 시장 상황과 포트폴리오를 분석하여 맞춤형 조언을 제공합니다.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>실시간 데이터</h3>
+            <p>빠르고 정확한 시장 데이터를 바탕으로 즉각적인 의사결정을 지원합니다.</p>
+        </div>
+    </section>
+
+    <footer>
+        <p>© 2024 BUJA Project. Open Source Software.</p>
+    </footer>
+</body>
+</html>

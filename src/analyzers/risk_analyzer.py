@@ -176,6 +176,7 @@ class RiskAnalyzer:
                 "volatility": 0.0,
                 "beta": 1.0,
                 "max_drawdown": 0.0,
+                "max_drawdown_percentage": 0.0,
                 "risk_level": "LOW"
             }
 

@@ -15,21 +15,82 @@ TIMEOUT = 30000  # 30초
 @pytest.fixture(scope="session")
 def browser():
     """Playwright 브라우저 인스턴스 (세션 전체에서 공유)"""
+    import sys
+    
+    print("\n" + "=" * 80)
+    print("[BROWSER] 브라우저를 시작합니다...")
+    print("=" * 80)
+    print("[WARNING] 브라우저 창이 열립니다. 화면을 확인하세요!")
+    print("=" * 80)
+    sys.stdout.flush()  # 출력 즉시 반영
+    
     playwright = sync_playwright().start()
     browser = playwright.chromium.launch(
-        headless=False,  # 브라우저가 보이도록
-        slow_mo=500,    # 0.5초씩 천천히 실행 (관찰하기 쉽게)
+        headless=False,  # 브라우저가 보이도록 (필수!)
+        slow_mo=1500,   # 1.5초씩 천천히 실행 (관찰하기 쉽게)
+        args=[
+            '--start-maximized',  # 브라우저를 최대화하여 시작
+            '--disable-blink-features=AutomationControlled',  # 자동화 감지 비활성화
+        ],
     )
+    
+    print("[OK] 브라우저가 열렸습니다!")
+    print("=" * 80)
+    sys.stdout.flush()
+    
+    # 브라우저가 실제로 열릴 때까지 잠시 대기
+    time.sleep(2)
+    
     yield browser
+    
+    print("\n" + "=" * 80)
+    print("[CLOSE] 브라우저를 닫습니다...")
+    print("=" * 80)
+    sys.stdout.flush()
+    
     browser.close()
     playwright.stop()
 
 
 @pytest.fixture(scope="function")
+def screenshot_dir(tmp_path):
+    """스크린샷 저장 디렉토리"""
+    import os
+    screenshot_path = os.path.join("tests", "e2e", "screenshots")
+    os.makedirs(screenshot_path, exist_ok=True)
+    return screenshot_path
+
+
+@pytest.fixture(scope="function")
 def page(browser: Browser):
     """각 테스트마다 새로운 페이지 인스턴스"""
+    import sys
+    
+    # 새 페이지 생성
     page = browser.new_page()
+    
+    # 브라우저 창 크기 설정 (최대화)
+    page.set_viewport_size({"width": 1920, "height": 1080})
+    
+    # 브라우저 창을 앞으로 가져오기 (Windows)
+    try:
+        # Windows에서 브라우저 창 포커스
+        import subprocess
+        import platform
+        if platform.system() == "Windows":
+            # Chrome/Chromium 프로세스 찾아서 포커스
+            pass  # Playwright가 자동으로 처리
+    except:
+        pass
+    
+    print(f"\n[PAGE] 새 페이지가 열렸습니다: {page.url if page.url else '(아직 URL 없음)'}")
+    sys.stdout.flush()
+    
     yield page
+    
+    print(f"[PAGE] 페이지를 닫습니다: {page.url}")
+    sys.stdout.flush()
+    
     page.close()
 
 

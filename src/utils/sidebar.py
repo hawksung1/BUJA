@@ -785,6 +785,10 @@ def _render_authenticated_sidebar(user, onboarding_status, current_page: str = N
 
         st.markdown("---")
 
+        # Notification badge (if onboarding complete)
+        if onboarding_status["completed"]:
+            _render_notification_badge(user)
+
         # Chat section (only for agent_chat page)
         if current_page == "agent_chat":
             _render_chat_section(user)
@@ -820,6 +824,56 @@ def _render_authenticated_sidebar(user, onboarding_status, current_page: str = N
 
         # Settings modal (rendered if opened)
         _render_settings_modal(user, onboarding_status)
+
+
+def _render_notification_badge(user):
+    """사이드바에 알림 배지 표시"""
+    from src.services.notification_service import NotificationService
+    from src.utils.async_helpers import run_async
+
+    try:
+        notification_service = NotificationService()
+        unread_count = run_async(notification_service.get_unread_count(user.id))
+
+        if unread_count > 0:
+            st.markdown(
+                f"""
+                <div style="
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    padding: 0.5rem;
+                    background-color: rgba(255, 87, 34, 0.1);
+                    border-radius: 0.5rem;
+                    margin-bottom: 0.5rem;
+                    cursor: pointer;
+                ">
+                    <span style="font-size: 1.2rem; margin-right: 0.5rem;">🔔</span>
+                    <span style="flex: 1; color: rgba(255, 255, 255, 0.9);">알림</span>
+                    <span style="
+                        background-color: #ff5722;
+                        color: white;
+                        border-radius: 50%;
+                        width: 1.5rem;
+                        height: 1.5rem;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 0.75rem;
+                        font-weight: bold;
+                    ">{unread_count}</span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            # 알림 페이지로 이동하는 버튼
+            if st.button("알림 보기", use_container_width=True, key="sidebar_notification_btn"):
+                st.switch_page("pages/notifications.py")
+    except Exception as e:
+        # 알림 조회 실패 시 무시 (로그만 남김)
+        logger = get_logger(__name__)
+        logger.warning(f"Failed to load notification badge: {e}")
 
 
 def _render_chat_section(user):
