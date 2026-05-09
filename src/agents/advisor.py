@@ -73,11 +73,36 @@ def _collect_context(user_message: str, portfolio: dict) -> list[str]:
     for ticker in detect_tickers(user_message):
         try:
             info = get_stock_info(ticker)
+            w_low = info.get("week_52_low") or 0
+            w_high = info.get("week_52_high") or 0
+            cur = info["current_price"]
+            pos_pct = ((cur - w_low) / (w_high - w_low) * 100) if w_high > w_low else None
+
+            roe_val = info.get("roe")
+            roe_str = f"{roe_val*100:.1f}%" if roe_val else "N/A"
+            de_val = info.get("debt_to_equity")
+            de_str = f"{de_val:.1f}%" if de_val else "N/A"
+            fcf_val = info.get("free_cashflow")
+            fcf_str = f"{fcf_val/1e8:+.0f}억" if fcf_val else "N/A"
+            gn = info.get("graham_number")
+            gn_str = f"{gn:,.0f} (안전마진 {(gn-cur)/gn*100:+.1f}%)" if gn and cur else "N/A"
+            peg_str = str(info.get("peg_ratio", "N/A"))
+            op_str = f"{info.get('operating_margin',0)*100:.1f}%" if info.get("operating_margin") else "N/A"
+            pos_str = f"저점 대비 {pos_pct:.0f}% 위치" if pos_pct is not None else "N/A"
+
             parts.append(
                 f"[STOCK_DATA: {info['name']} ({ticker})]\n"
-                f"현재가: {info['current_price']:,.0f} | 등락: {info['change_pct']:+.2f}%\n"
-                f"P/E: {info.get('pe_ratio', 'N/A')} | P/B: {info.get('pb_ratio', 'N/A')} | ROE: {info.get('roe', 'N/A')}\n"
-                f"52주: {info.get('week_52_low') or 0:,.0f} ~ {info.get('week_52_high') or 0:,.0f} | 섹터: {info.get('sector', 'N/A')}"
+                f"현재가: {cur:,.0f}원 | 등락: {info['change_pct']:+.2f}%\n"
+                f"52주: {w_low:,.0f} ~ {w_high:,.0f} | {pos_str}\n"
+                f"--- 그레이엄 지표 ---\n"
+                f"P/E: {info.get('pe_ratio', 'N/A')}배 (기준 <15) | P/B: {info.get('pb_ratio', 'N/A')}배 (기준 <1.5)\n"
+                f"Graham Number: {gn_str} | 부채비율 D/E: {de_str} (기준 <50%)\n"
+                f"--- 버핏 지표 ---\n"
+                f"ROE: {roe_str} (기준 >15%) | 영업이익률: {op_str} (기준 >20%) | FCF: {fcf_str}\n"
+                f"--- 린치 지표 ---\n"
+                f"PEG: {peg_str} (기준 <1.0 이상적) | 섹터: {info.get('sector', 'N/A')}\n"
+                f"--- 피셔 지표 ---\n"
+                f"매출성장률: {info.get('revenue_growth', 'N/A')} | EPS성장률: {info.get('earnings_growth', 'N/A')}"
             )
         except Exception:
             parts.append(f"[STOCK_DATA: {ticker}] 조회 실패 — 임의 수치 생성 금지")

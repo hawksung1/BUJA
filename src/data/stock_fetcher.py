@@ -57,6 +57,19 @@ def get_stock_info(ticker: str) -> dict:
                 hist = stock.history(period="1y")
             except Exception:
                 hist = pd.DataFrame()
+            eps = info.get("trailingEps")
+            bps = info.get("bookValue")
+            import math
+            graham_number = None
+            if eps and bps and eps > 0 and bps > 0:
+                graham_number = round(math.sqrt(22.5 * eps * bps), 2)
+
+            pe = info.get("trailingPE")
+            earnings_growth = info.get("earningsGrowth") or info.get("revenueGrowth")
+            peg = None
+            if pe and earnings_growth and earnings_growth > 0:
+                peg = round(pe / (earnings_growth * 100), 2)
+
             result = {
                 "ticker": ticker,
                 "name": info.get("longName") or info.get("shortName", ticker),
@@ -66,11 +79,18 @@ def get_stock_info(ticker: str) -> dict:
                 "volume": info.get("volume", 0),
                 "avg_volume": info.get("averageVolume", 0),
                 "market_cap": info.get("marketCap", 0),
-                "pe_ratio": info.get("trailingPE"),
+                "pe_ratio": pe,
                 "pb_ratio": info.get("priceToBook"),
                 "roe": info.get("returnOnEquity"),
                 "debt_to_equity": info.get("debtToEquity"),
                 "free_cashflow": info.get("freeCashflow"),
+                "operating_margin": info.get("operatingMargins"),
+                "revenue_growth": info.get("revenueGrowth"),
+                "earnings_growth": info.get("earningsGrowth"),
+                "eps": eps,
+                "bps": bps,
+                "graham_number": graham_number,
+                "peg_ratio": peg,
                 "week_52_high": info.get("fiftyTwoWeekHigh"),
                 "week_52_low": info.get("fiftyTwoWeekLow"),
                 "sector": info.get("sector", ""),
