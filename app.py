@@ -29,7 +29,7 @@ if not os.getenv("ANTHROPIC_API_KEY"):
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "portfolio" not in st.session_state:
-    st.session_state.portfolio = {"cash": 0, "holdings": []}
+    st.session_state.portfolio = {"cash": 0, "holdings": [], "risk_profile": "중립형"}
 
 # --- 사이드바 ---
 with st.sidebar:
@@ -40,6 +40,14 @@ with st.sidebar:
 
     with tab_port:
         st.caption("API 연동 없이 직접 입력하세요")
+
+        risk_profile = st.selectbox(
+            "리스크 성향",
+            ["공격형", "중립형", "안정형"],
+            index=["공격형", "중립형", "안정형"].index(
+                st.session_state.portfolio.get("risk_profile", "중립형")
+            ),
+        )
 
         cash = st.number_input(
             "현금 (원)",
@@ -72,7 +80,7 @@ with st.sidebar:
                     holdings.append({"name": new_name, "qty": new_qty, "avg_price": new_avg})
 
         if st.button("저장", type="primary", use_container_width=True):
-            st.session_state.portfolio = {"cash": cash, "holdings": holdings}
+            st.session_state.portfolio = {"cash": cash, "holdings": holdings, "risk_profile": risk_profile}
             st.success("저장됨")
             st.rerun()
 
@@ -103,6 +111,9 @@ with st.sidebar:
                     st.rerun()
                 except Exception:
                     st.error("파일 형식 오류")
+        # risk profile display
+        if st.session_state.portfolio.get("risk_profile"):
+            st.caption(f"리스크 성향: {st.session_state.portfolio['risk_profile']}")
 
     with tab_ex:
         examples = [
@@ -148,6 +159,8 @@ if not st.session_state.messages:
             "- 요즘 시장 어때?"
         ),
     })
+
+st.caption("⚠️ 본 서비스는 투자 참고용입니다. 최종 투자 결정과 책임은 투자자 본인에게 있습니다.")
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
